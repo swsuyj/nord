@@ -1,0 +1,46 @@
+.\" Manpage for nord.
+.TH man 1 "09 Feb 2020" "0.1" "nord man page"
+
+.SH NAME
+nord \- a NordVPN command line application
+
+.SH SYNOPSIS
+nord [options] [command [arguments]]
+
+.SH DESCRIPTION
+nord is a free command line application for NordVPN written in Bash.
+
+.SH COMMANDS
+.IP connect
+Connect to a NordVPN server. When a suitable server is chosen, stats are
+taken directly from the nordvpn.com API. Then the lowest-load servers are
+filtered, and a subset of the lowest-load servers are pinged. Of the
+fastest servers, the fastest is chosen. A hole is made in the kill switch
+firewall (if on) , and then the chosen server is connected to.
+
+.IP disconnect
+Disconnect from the server currently connected to. Mend the corresponding
+firewall hole, if kill switch is on.
+
+.IP "set conf {on|off|other}"
+Switch config item
+.B conf
+on or off.
+The following config items are available:
+.RS 12
+.B killswitch obfuscated autoconnect country
+.RE
+
+
+.SH OPTIONS
+.IP -v|--verbose
+Verbose logging.
+.IP -vv|--very-verbose
+Very verbose logging.
+
+.SH BUGS
+No known bugs.
+
+.SH AUTHOR
+swsuyj
+
