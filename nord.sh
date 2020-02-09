@@ -859,7 +859,7 @@ main $@
 # - Add obfuscation
 # - Add selection of country
 # - Add periodical update of best servers
-# - 
+# - Change firewalld to iptables
 # - 
 # - 
 # - 
