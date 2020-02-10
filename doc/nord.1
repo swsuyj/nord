@@ -11,6 +11,10 @@ nord [options] [command [arguments]]
 nord is a free command line application for NordVPN written in Bash.
 
 .SH COMMANDS
+.IP login
+Log in to the application. The username and password is saved in plaintext,
+used for authenticating via network manager.
+
 .IP connect
 Connect to a NordVPN server. When a suitable server is chosen, stats are
 taken directly from the nordvpn.com API. Then the lowest-load servers are
