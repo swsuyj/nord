@@ -724,7 +724,7 @@ function checkLegalCountry () {
 
 # Usage:  printHelp
 # Before: Nothing.
-# After:  A useful help message has been printed to stout.
+# After:  A useful help message has been printed to stdout.
 function printHelp () {
 	vlog "Printing help message... \n"
 	log "\n"
