@@ -74,7 +74,7 @@ function elog () {
 
 # Verbose logging
 function vlog () {
-	if [[ ${config["VERBOSE"]} -eq 1 ]]
+	if [[ ${config["VERBOSE"]} -eq 1 || ${config["VVERBOSE"]} -eq 1 ]]
 	then
 		echo -ne "$1"
 	fi
@@ -82,7 +82,7 @@ function vlog () {
 
 # Very verbose logging
 function vvlog () {
-	if [[ ${config["VVERBOSE"]} -eq 1 || ${config["VERBOSE"]} -eq 1 ]]
+	if [[ ${config["VVERBOSE"]} -eq 1 ]]
 	then
 		echo -ne "$1"
 	fi
@@ -189,6 +189,7 @@ function updateConfig () {
 	then
 		vvlog "non-save"
 		nosave["$1"]=$2
+		loadConfig
 		return 0
 	fi
 	vvlog "\n"
@@ -475,6 +476,7 @@ function getRecommendedServer () {
 	vlog "Servers with lowest load have been pinged.\n"
 
 	vlog "Saving top servers... "
+	vvlog "\n"
 	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
 	for ((i=0; i<${#servers[@]}; i++)); do
 		vvlog "Server ${servers[$i]} has ping time ${ping_times[$i]}.\n"
@@ -781,7 +783,6 @@ function main () {
 				shift
 				;;
 			-vv|--very-verbose)
-				updateConfig "VERBOSE" 1 "nosave"
 				updateConfig "VVERBOSE" 1 "nosave"
 				loadConfig
 				shift
