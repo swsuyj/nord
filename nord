@@ -724,8 +724,14 @@ function setup () {
 #          optionally a server number in that country.
 #          Returns 1 otherwise.
 function checkLegalCountry () {
-	elog "This function \(checkLegalCoutry\) has not been implemented yet.\n"
-	return 0
+	vlog
+	ls -l $OVPN_DIR/ovpn_$CONN_TYPE \
+		| sed 's/.*:\w\w \|.nord.*//g' \
+		| sed 's/[[:digit:]]\+//' \
+		| sort \
+		| uniq \
+		| grep "^$1\$"
+	return $?
 }
 
 
