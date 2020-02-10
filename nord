@@ -357,6 +357,8 @@ function firewallUnpunch () {
 # Before: Internet access is available.
 # After:  If server fetching is successful, results of top-N
 #          servers is saved in topservers.conf
+#          If CONN_DEST_COUNTRY is set, then the top servers
+#          only include servers from that country
 #          Returns a random, single best server.
 function getRecommendedServer () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && checkSetup && loadConfig
@@ -417,14 +419,33 @@ function getRecommendedServer () {
 		| shuf \
 		| head -n $NUM_SERVERS \
 	)
+	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
+	then
+		selected_servers=$( \
+			echo $stats \
+			| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
+			| $sed 's/^"\(\w\{2\}\)\([^.]\+\)\.nordvpn\.com":{"percent":\(\w\+\)}$/\3 \1\2/' \
+			| grep "$(ls -l $OVPN_DIR/ovpn_$CONN_TYPE \
+			| grep "${config["CONN_DEST_COUNTRY"]}[0-9]\+.nordvpn" \
+			| $sed 's/.*\([a-z]\{2\}[0-9]\+\)\.nordvpn\.com.*/\1/')" \
+			| sort -n \
+			| cut -d ' ' -f 2 \
+			| head -n `expr 5 \* ${config["NUM_SERVERS"]}` \
+			| shuf \
+			| head -n ${congig["NUM_SERVERS"]} \
+		)
+	fi
 
 	# Initialize server list, and ping times
 	servers=()
 	ping_times=()
+	vvlog "Top servers:\n"
 	for server in $selected_servers; do
+		vvlog "$server "
 		servers+=($server)
 		ping_times+=(-1)
 	done
+	vvlog "\n"
 
 	vlog "Starting pinging of top servers.\n"
 	# Ping top n servers to find the nearest
@@ -579,6 +600,7 @@ function disconnect () {
 	vlog "${output[@]}\n"
 	firewallUnpunch ${config["CONN_DEST"]}
 	updateConfig "CONN_DEST" $nowhere
+	updateConfig "CONN_DEST_COUNTRY" $nowhere
 	log "Successfully disconnected.\n"
 }
 
@@ -766,6 +788,7 @@ function main () {
 				checkSetup
 				if [[ -n $2 ]]
 				then
+					# Ensure the country code is legal.
 					if [[ $(checkLegalCountry $2) -ne 0 ]]
 					then
 						log "Illegal country code."
