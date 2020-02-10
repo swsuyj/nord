@@ -410,14 +410,14 @@ function getRecommendedServer () {
 		echo $stats \
 		| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
 		| $sed 's/^"\(\w\{2\}\)\([^.]\+\)\.nordvpn\.com":{"percent":\(\w\+\)}$/\3 \1\2/' \
-		| grep "$(ls -l $OVPN_DIR/ovpn_$CONN_TYPE \
+		| grep "$(ls -l $OVPN_DIR/ovpn_${config["CONN_TYPE"]} \
 		| grep "[a-z0-9]\+.nordvpn" \
 		| $sed 's/.*\([a-z]\{2\}[0-9]\+\)\.nordvpn\.com.*/\1/')" \
 		| sort -n \
 		| cut -d ' ' -f 2 \
 		| head -n `expr 5 \* ${config["NUM_SERVERS"]}` \
 		| shuf \
-		| head -n $NUM_SERVERS \
+		| head -n ${config["NUM_SERVERS"]} \
 	)
 	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
 	then
@@ -425,7 +425,7 @@ function getRecommendedServer () {
 			echo $stats \
 			| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
 			| $sed 's/^"\(\w\{2\}\)\([^.]\+\)\.nordvpn\.com":{"percent":\(\w\+\)}$/\3 \1\2/' \
-			| grep "$(ls -l $OVPN_DIR/ovpn_$CONN_TYPE \
+			| grep "$(ls -l $OVPN_DIR/ovpn_${config["CONN_TYPE"]} \
 			| grep "${config["CONN_DEST_COUNTRY"]}[0-9]\+.nordvpn" \
 			| $sed 's/.*\([a-z]\{2\}[0-9]\+\)\.nordvpn\.com.*/\1/')" \
 			| sort -n \
@@ -454,7 +454,9 @@ function getRecommendedServer () {
 		# TODO parallelize this loop
 
 		times=$( \
-			ping ${servers[$i]}.nordvpn.com -c ${config["PING_NUM"]} -i $PING_INTERVAL -q \
+			ping ${servers[$i]}.nordvpn.com \
+				-c ${config["PING_NUM"]} \
+				-i ${config["PING_INTERVAL"]} -q \
 			| grep "rtt min/avg/max/mdev" \
 		)
 
@@ -595,7 +597,7 @@ function disconnect () {
 		log "No active connection.\n"
 		return 1
 	fi
-	dest="${config["CONN_DEST"]}.nordvpn.com.$CONN_TYPE"
+	dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
 	output=$($nmcli connection delete $dest)
 	vlog "${output[@]}\n"
 	firewallUnpunch ${config["CONN_DEST"]}
@@ -634,7 +636,7 @@ function connect () {
 	vlog "Connecting to NordVPN... \n"
 	# Punch hole in firewall
 	firewallPunch ${config["CONN_DEST"]}
-	dest="${config["CONN_DEST"]}.nordvpn.com.$CONN_TYPE"
+	dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
 	
 	code=0
 	output=$( $nmcli connection import type openvpn file \
@@ -676,7 +678,7 @@ function setup () {
 	# If the cache has vpn files zipped, they might be old.
 	# Let the user decide if they need updating.
 	# If no cache, the zip file is downloaded.
-	if [[ -e $VPN_FILES ]]
+	if [[ -e ${config["VPN_FILES"]} ]]
 	then
 		log "\nCached vpn files found. Do you want to use them? [y/n] "
 		answered=0
