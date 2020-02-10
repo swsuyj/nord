@@ -1,0 +1,28 @@
+## This is a configuration file for the free nord command line application
+
+## Login
+USERNAME=
+
+## Pinging servers for finding the best server
+# How often to ping each server
+PING_NUM=3
+# Time between each ping, in seconds
+PING_INTERVAL=1
+# Number of servers to ping
+NUM_SERVERS=10
+# Timeout for fetching data, in seconds
+CONN_TIMEOUT=5
+
+## Kill switch
+# 1 for on, 0 for off
+KILL_SWITCH=0
+
+## Verbosity
+VERBOSE=0
+VVERBOSE=0
+
+## On connecting
+CONN_TYPE=tcp
+CONN_PORT=443
+CONN_DEST=nowhere
+CONN_DEST_COUNTRY=
