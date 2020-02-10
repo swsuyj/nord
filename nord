@@ -656,7 +656,12 @@ function connect () {
 		return 1
 	fi
 	log "Successfully connected to ${config["CONN_DEST"]}.\n"
-	(2>/dev/null getRecommendedServer) &
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vlog "Kill switch is on, so we did not fetch new stats.\n"
+		vlog "Fetching new stats in the background now.\n"
+		(2>/dev/null getRecommendedServer) &
+	fi
 }
 
 # Usage:  setup
