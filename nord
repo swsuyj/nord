@@ -485,12 +485,11 @@ function getRecommendedServer () {
 	vlog "Done\n"
 
 	# Fold over ping times to find the fastest server
+	vvlog "Searching for the fastest server from the data gathered.\n"
 	min_index=0
 	min_ping=-1
 	for ((i=0; i<${#servers[@]}; i++)); do
-		vvlog "Ping time of $i: ${ping_times[$i]}\n"
 		if [[ $min_ping == -1 || ${ping_times[$i]} -lt $min_ping ]]; then
-			vvlog "Setting min_ping time to ${ping_times[$i]}.\n"
 			min_ping=${ping_times[$i]}
 			min_index=$i
 		fi
