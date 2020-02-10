@@ -362,7 +362,7 @@ function firewallUnpunch () {
 #          only include servers from that country
 #          Returns a random, single best server.
 function getRecommendedServer () {
-	[[ ${config["CONF_LOADED"]} -ne 1 ]] && checkSetup && loadConfig
+	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	# Fetch servers with lowest load
 	vlog "Fetching information on the load of NordVPN servers.\n"
 
@@ -613,7 +613,8 @@ function disconnect () {
 # Before: Nothing.
 # After:  A connection to Nord is up.
 function connect () {
-	[[ ${config["CONF_LOADED"]} -ne 1 ]] && checkSetup && loadConfig
+	checkSetup
+	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	nmcli connection show --active | grep nordvpn &>/dev/null
 	if [[ $? -eq 0 ]]
 	then
