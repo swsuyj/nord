@@ -8,7 +8,12 @@ URL:            https://github.com/swsuyj/%{name}
 Source0:        %{_sourcedir}/%{name}-%{version}-%{release}.tar.gz
 BuildArch:      noarch
 
-Requires:       firewalld,bash,wget,unzip,sed
+Requires:       firewalld
+Requires:       bash
+Requires:       wget
+Requires:       unzip
+Requires:       sed
+Requires:       NetworkManager-openvpn
 
 %description
 Nord is a command line application written in Bash
