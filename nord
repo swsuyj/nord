@@ -640,13 +640,6 @@ function connect () {
 		log "Already connected to ${config["CONN_DEST"]}.\n"
 		return 0
 	fi
-	if [[ -z $(cat $AUTH_FILE) ]]
-	then
-		elog "No credentials stored.\n"
-		getLogin
-		elog "Now try to connect again.\n"
-		return 0
-	fi
 	getRecommendedServer
 	updateConfig "CONN_DEST" $retvar
 	# If credentials are not stored, request them.
