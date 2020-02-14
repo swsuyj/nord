@@ -490,19 +490,16 @@ function getRecommendedServer () {
 	# Order servers by ping time
 	vvlog "Sorting top servers by ping time... "
 	zipped=()
-	for ((i=0; i<${#myservers[@]}; i++))
+	for ((i=0; i<${#servers[@]}; i++))
 	do
 		zipped+=("${ping_times[$i]}:${servers[$i]}")
 	done
 	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort)\n"
-	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort | sed 's/^.*://')
-	ordered_servers=()
-	for server in ${ordered[@]}
-	do
-		ordered_servers+=($server)
-	done
+	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n | sed 's/^.*://')
 	vvlog "Done\n"
-	vvlog "Top servers in order:\n${ordered_servers[@]}\n"
+	vvlog "Top servers in order:\n"
+	vvlog "${ordered[@]}"
+	vvlog "\n"
 
 
 	vlog "Saving top servers... "
