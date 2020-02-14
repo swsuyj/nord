@@ -235,6 +235,20 @@ function checkSetup () {
 }
 
 
+# Usage:  saveServers x
+# Before: x is a list of servers to save as top servers.
+# After:  Servers x have been saved to file.
+function saveServers () {
+	vlog "Saving top servers... "
+	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
+	for server in $@
+	do
+		sed -ci "$ a $server" $TOP_SERVERS_FILE
+	done
+	vlog "Done\n"
+}
+
+
 # Usage:  loadTopServers
 # Before: $top_servers has been initialized
 # After:  $retvar has been filled with latest update on good servers,
@@ -355,6 +369,10 @@ function firewallUnpunch () {
 }
 
 
+# Usage:  isConnectionAvailabe 
+# Before: Nothing.
+# After:  Returns 0 if a connection is available.
+#         Otherwise returns 1.
 function isConnectionAvailabe () {
 	vvlog "A connection is "
 	if [[ -n $(nmcli connection show --active) && \
@@ -464,6 +482,10 @@ function getRecommendedServer () {
 	done
 	vvlog "\n"
 
+	# Pinging over VPN is meaningless.
+	# If a VPN connection is up, only save low-load servers.
+	saveServers ${servers[@]}
+
 	vlog "Starting pinging of top servers.\n"
 	# Ping top n servers to find the nearest
 	#  (assuming ping time correlates with distance)
@@ -508,21 +530,15 @@ function getRecommendedServer () {
 	vvlog "${ordered[@]}"
 	vvlog "\n"
 
-
-	vlog "Saving top servers... "
-	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
-	for server in ${servers[@]}
-	do
-		sed -ci "$ a $server" $TOP_SERVERS_FILE
-	done
-	vlog "Done\n"
+	saveServers ${ordered[@]}
 
 	retvar=${servers[$min_index]}
 }
 
 
-
-
+# Usage:  killswitch x
+# Before: x is "on" or "off"
+# After:  Killswich has been turned on/off according to x.
 function killswitch () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	vlog "Turning the kill switch on/off requires root access.\n"
