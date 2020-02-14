@@ -354,6 +354,22 @@ function firewallUnpunch () {
 }
 
 
+function isConnectionAvailabe () {
+	vvlog "A connection is "
+	if [[ -n $(nmcli connection show --active) && \
+			(${config["KILL_SWITCH"]} -eq 1 && \
+			-n $(nmcli connection show --active | grep nordvpn) || \
+			${config["KILL_SWITCH"]} -eq 0) \
+		]]
+	then
+		vvlog "available.\n"
+		return 0
+	fi
+	vvlog "not available.\n"
+	return 1
+}
+
+
 # Usage:  getRecommendedServer
 # Before: Internet access is available.
 # After:  If server fetching is successful, results of top-N
@@ -368,20 +384,16 @@ function getRecommendedServer () {
 
 	vlog "Getting nord stats... "
 
-	vvlog "Is there an active connection? {$(nmcli connection show --active)}\n"
 	stats=""
-	[[ -n $(nmcli connection show --active) ]] &&
-		[[ \
-			${config["KILL_SWITCH"]} -eq 1 && \
-			-n $(nmcli connection show --active | grep nordvpn) || \
-			${config["KILL_SWITCH"]} -eq 0 \
-		]] && \
+	if [[ isConnectionAvailabe ]]
+	then
 		vvlog "Fetching stats now.\n" && \
 		stats=$( \
 			$curl \
 				--connect-timeout ${config["CONN_TIMEOUT"]} \
 				$VPN_STATS_URL \
 		)
+	fi
 
 	# if no internet, load best servers.
 	if [[ -z $stats ]]
