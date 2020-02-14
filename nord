@@ -162,10 +162,10 @@ function loadConfig () {
 	done
 
 	# Load configs the nosaved config
-	log "Updating config with nosave.\n"
+	vvlog "Updating config with nosave.\n"
 	for nokey in ${!nosave[@]}
 	do
-		log "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}.\n"
+		vvlog "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}.\n"
 		config["$nokey"]=${nosave["$nokey"]}
 	done
 }
