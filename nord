@@ -162,11 +162,11 @@ function loadConfig () {
 	done
 
 	# Load configs the nosaved config
-	vvlog "Updating config with nosave.\n"
+	log "Updating config with nosave.\n"
 	for nokey in ${!nosave[@]}
 	do
-		vvlog "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}.\n"
-		config["$nokey"]=nosave["$nokey"]
+		log "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}.\n"
+		config["$nokey"]=${nosave["$nokey"]}
 	done
 }
 
@@ -408,7 +408,7 @@ function getRecommendedServer () {
 	stats=""
 	if [[ isConnectionAvailabe ]]
 	then
-		vvlog "Fetching stats now.\n"
+		vvlog "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}.\n"
 		stats=$( \
 			$curl \
 				--connect-timeout ${config["CONN_TIMEOUT"]} \
