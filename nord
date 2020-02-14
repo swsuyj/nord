@@ -647,7 +647,8 @@ function connect () {
 		getLogin
 	fi
 	# Connect to NordVPN
-	vlog "Connecting to NordVPN... \n"
+	vlog "Connecting to NordVPN... "
+	vvlog "\n"
 	# Punch hole in firewall
 	firewallPunch ${config["CONN_DEST"]}
 	dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
