@@ -494,6 +494,7 @@ function getRecommendedServer () {
 	do
 		zipped+=("${ping_times[$i]}:${servers[$i]}")
 	done
+	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort)\n"
 	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort | sed 's/^.*://')
 	ordered_servers=()
 	for server in ${servers[@]}
@@ -501,20 +502,16 @@ function getRecommendedServer () {
 		ordered_servers+=($server)
 	done
 	vvlog "Done\n"
+	vvlog "Top servers in order:\n${ordered_servers[@]}\n"
 
 
 	vlog "Saving top servers... "
-	vvlog "\n"
 	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
-	for ((i=0; i<${#servers[@]}; i++)); do
-		vvlog "Server ${servers[$i]} has ping time ${ping_times[$i]}.\n"
+	for server in ${#servers[@]}
+	do
 		sed -ci "$ a ${servers[$i]}" $TOP_SERVERS_FILE
 	done
 	vlog "Done\n"
-
-	vvlog "Server ${servers[$min_index]} has low load and "
-	vvlog "ping time ${ping_times[$min_index]}, "
-	vvlog "but lowest ping time is $min_ping.\n"
 
 	retvar=${servers[$min_index]}
 }
