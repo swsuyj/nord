@@ -387,7 +387,7 @@ function getRecommendedServer () {
 	stats=""
 	if [[ isConnectionAvailabe ]]
 	then
-		vvlog "Fetching stats now.\n" && \
+		vvlog "Fetching stats now.\n"
 		stats=$( \
 			$curl \
 				--connect-timeout ${config["CONN_TIMEOUT"]} \
