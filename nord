@@ -218,8 +218,9 @@ function updateConfig () {
 function checkSetup () {
 	vlog "Checking for required files and folders... "
 	if [[
-			! -d $CONF_DIR ||
 			! -f $CONF_FILE ||
+			! -f $AUTH_FILE ||
+			! -d $CONF_DIR ||
 			! -d $DATA_DIR ||
 			! -d $OVPN_DIR ||
 			-z $(ls $OVPN_DIR)
