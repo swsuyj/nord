@@ -376,7 +376,8 @@ function isConnectionAvailabe () {
 #          servers is saved in topservers.conf
 #          If CONN_DEST_COUNTRY is set, then the top servers
 #          only include servers from that country
-#          Returns a random, single best server.
+#          Returns the single best server (last known best, from
+#          file if no connectivity).
 function getRecommendedServer () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	# Fetch servers with lowest load
@@ -407,8 +408,8 @@ function getRecommendedServer () {
 
 		loadTopServers
 
-		# Return random latest-best server
-		retvar=$(echo ${retvar[@]} | sed 's/ /\n/g' | shuf | head -n 1)
+		# Return latest-best server
+		retvar=${retvar[0]}
 		return 0
 	else
 		vlog "Done\n"
@@ -474,7 +475,8 @@ function getRecommendedServer () {
 		)
 
 		if [[ -z $times ]]; then
-			elog "Unable to ping NordVPN server ${servers[$i]}. Aborting!\n" 
+			elog "Unable to ping NordVPN server ${servers[$i]}.\n" 
+			continue
 			return 1
 		fi
 
