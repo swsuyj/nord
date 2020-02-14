@@ -498,7 +498,7 @@ function getRecommendedServer () {
 	do
 		zipped+=("${ping_times[$i]}:${servers[$i]}")
 	done
-	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort)\n"
+	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n)\n"
 	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n | sed 's/^.*://')
 	vvlog "Done\n"
 	vvlog "Top servers in order:\n"
