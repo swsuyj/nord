@@ -487,6 +487,22 @@ function getRecommendedServer () {
 	# Ensure all threads have completed
 	vlog "Servers with lowest load have been pinged.\n"
 
+	# Order servers by ping time
+	vvlog "Sorting top servers by ping time... "
+	zipped=()
+	for ((i=0; i<${#myservers[@]}; i++))
+	do
+		zipped+=("${ping_times[$i]}:${servers[$i]}")
+	done
+	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort | sed 's/^.*://')
+	ordered_servers=()
+	for server in ${servers[@]}
+	do
+		ordered_servers+=($server)
+	done
+	vvlog "Done\n"
+
+
 	vlog "Saving top servers... "
 	vvlog "\n"
 	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
@@ -496,16 +512,6 @@ function getRecommendedServer () {
 	done
 	vlog "Done\n"
 
-	# Fold over ping times to find the fastest server
-	vvlog "Searching for the fastest server from the data gathered.\n"
-	min_index=0
-	min_ping=-1
-	for ((i=0; i<${#servers[@]}; i++)); do
-		if [[ $min_ping == -1 || ${ping_times[$i]} -lt $min_ping ]]; then
-			min_ping=${ping_times[$i]}
-			min_index=$i
-		fi
-	done
 	vvlog "Server ${servers[$min_index]} has low load and "
 	vvlog "ping time ${ping_times[$min_index]}, "
 	vvlog "but lowest ping time is $min_ping.\n"
