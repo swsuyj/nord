@@ -445,7 +445,7 @@ function getRecommendedServer () {
 			| cut -d ' ' -f 2 \
 			| head -n `expr 5 \* ${config["NUM_SERVERS"]}` \
 			| shuf \
-			| head -n ${congig["NUM_SERVERS"]} \
+			| head -n ${config["NUM_SERVERS"]} \
 		)
 	fi
 
