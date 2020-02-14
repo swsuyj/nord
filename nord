@@ -484,7 +484,7 @@ function getRecommendedServer () {
 
 	# Pinging over VPN is meaningless.
 	# If a VPN connection is up, only save low-load servers.
-	if [[ ${config["KILL_SWITCH"]} -eq 0 ]]
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vlog "Kill switch is blocking pinging.\n"
 		saveServers ${servers[@]}
