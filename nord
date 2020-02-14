@@ -435,6 +435,8 @@ function getRecommendedServer () {
 	)
 	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
 	then
+		# TODO Don't have this duplicated.
+		#      Handle having a country set properly, not by copy-paste.
 		selected_servers=$( \
 			echo $stats \
 			| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
