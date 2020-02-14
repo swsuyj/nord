@@ -507,9 +507,9 @@ function getRecommendedServer () {
 
 	vlog "Saving top servers... "
 	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
-	for server in ${#servers[@]}
+	for server in ${servers[@]}
 	do
-		sed -ci "$ a ${servers[$i]}" $TOP_SERVERS_FILE
+		sed -ci "$ a $server" $TOP_SERVERS_FILE
 	done
 	vlog "Done\n"
 
