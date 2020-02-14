@@ -606,7 +606,7 @@ function getLogin () {
 # After:  The connection has been terminated.
 function disconnect () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	output=$(nmcli connection show --active | grep nordvpn)
+	output=$(nmcli connection show | grep ${config["CONN_DEST"]})
 	vvlog "nmcli search results:\n{$output}\n"
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
 	then
