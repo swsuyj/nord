@@ -464,23 +464,25 @@ function getRecommendedServer () {
 	vlog "Starting pinging of top servers.\n"
 	# Ping top n servers to find the nearest
 	#  (assuming ping time correlates with distance)
-	for ((i=0; i<${#servers[@]}; i++)); do
+	for key in ${!servers[@]}
+	do
 		# TODO parallelize this loop
 
 		times=$( \
-			ping ${servers[$i]}.nordvpn.com \
+			ping ${servers[$key]}.nordvpn.com \
 				-c ${config["PING_NUM"]} \
 				-i ${config["PING_INTERVAL"]} -q \
 			| grep "rtt min/avg/max/mdev" \
 		)
 
 		if [[ -z $times ]]; then
-			elog "Unable to ping NordVPN server ${servers[$i]}.\n" 
+			elog "Unable to ping NordVPN server ${servers[$key]}.\n"
+			unset servers[$key]
 			continue
 			return 1
 		fi
 
-		ping_times[$i]=$( \
+		ping_times[$key]=$( \
 			echo $times | \
 			$sed 's/^.*min\/avg\/max\/mdev = [0-9.]\+\/\([0-9]\+\).*$/\1/' \
 		)
