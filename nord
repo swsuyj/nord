@@ -497,7 +497,7 @@ function getRecommendedServer () {
 	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort)\n"
 	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort | sed 's/^.*://')
 	ordered_servers=()
-	for server in ${servers[@]}
+	for server in ${ordered[@]}
 	do
 		ordered_servers+=($server)
 	done
