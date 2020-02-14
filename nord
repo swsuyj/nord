@@ -187,12 +187,13 @@ function updateConfig () {
 
 	if [[ $3 == "nosave" ]]
 	then
-		vvlog "non-save"
+		vvlog "non-save\n"
 		nosave["$1"]=$2
 		loadConfig
 		return 0
+	else
+		vvlog "\n"
 	fi
-	vvlog "\n"
 
 	vlog "Updating config file... "
 
