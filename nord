@@ -24,6 +24,7 @@ VPN_FILES="$CACHE_DIR/nordvpnfiles.zip"
 TOP_SERVERS_FILE="$CONF_DIR/topservers.conf"
 VPN_FILE_URL="https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip"
 VPN_STATS_URL="https://nordvpn.com/api/server/stats"
+VPN_RECOMMENDED_URL="https://nordvpn.com/wp-admin/admin-ajax.php?action=servers_recommendations"
 CONN_DEST=""
 # TODO use only country code
 CONN_DEST_DEFAULT="nl690"
@@ -76,7 +77,7 @@ function elog () {
 function vlog () {
 	if [[ ${config["VERBOSE"]} -eq 1 || ${config["VVERBOSE"]} -eq 1 ]]
 	then
-		echo -ne "$1"
+		echo -ne "$@"
 	fi
 }
 
@@ -84,7 +85,7 @@ function vlog () {
 function vvlog () {
 	if [[ ${config["VVERBOSE"]} -eq 1 ]]
 	then
-		echo -ne "$1"
+		echo -ne "$@"
 	fi
 }
 
@@ -142,10 +143,6 @@ function loadConfig () {
 				vvlog "Loading $varname as ${temp_config[$varname]}.\n"
 			fi
 		done < $CONF_FILE
-
-		# Set connection port after loading.
-		[[ ${temp_config[conn_type]} == "tcp" ]] && temp_config[conn_port]=443
-		[[ ${temp_config[conn_type]} == "udp" ]] && temp_config[conn_port]=1194
 
 		vlog "Done\n"
 		temp_config["CONF_LOADED"]=1
@@ -291,7 +288,7 @@ function loadTopServers () {
 
 	vvlog "Top servers:\n"
 	for x in ${top_servers[@]}; do
-		vvlog "$x \t "
+		vvlog "$x "
 	done
 	vvlog "\n"
 
@@ -335,12 +332,16 @@ function firewallPunch () {
 		--direct \
 		--add-rule ipv4 \
 		filter OUTPUT 10 \
-		-p tcp \
-		-m tcp \
+		--protocol ${config["CONN_TYPE"]} \
 		--dport ${config["CONN_PORT"]} \
-		-d "$dest_ip" \
-		-j ACCEPT
-	vlog "Done\n"
+		--destination "$dest_ip" \
+		--jump ACCEPT
+	if [[ $? ]]
+	then
+		vlog "Done\n"
+	else
+		vlog "Failed\n"
+	fi
 }
 
 # Usage:  firewallUnpunch x
@@ -361,12 +362,16 @@ function firewallUnpunch () {
 		--direct \
 		--remove-rule ipv4 \
 		filter OUTPUT 10 \
-		-p tcp \
-		-m tcp \
+		--protocol ${config["CONN_TYPE"]} \
 		--dport ${config["CONN_PORT"]} \
-		-d "$dest_ip" \
-		-j ACCEPT
-	vlog "Done\n"
+		--destination "$dest_ip" \
+		--jump ACCEPT
+	if [[ $? ]]
+	then
+		vlog "Done\n"
+	else
+		vlog "Failed\n"
+	fi
 }
 
 
@@ -390,8 +395,52 @@ function isConnectionAvailabe () {
 }
 
 
+# Usage:  getRecommendedServer_new
+# Before: No VPN connection is up.
+# After:  If server fetching is successful, results of top-N
+#          servers is saved in topservers.conf
+#          If CONN_DEST_COUNTRY is set, then the top servers
+#          only include servers from that country
+#          Returns a list of best servers (last known best, from
+#          file if no connectivity).
+function getRecommendedServer_new () {
+	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
+
+	# Open a hole in the firewall if on
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
+		# root does the DNS lookup of 'nordvpn.com', so we can't
+		# restrict DNS lookups to current user/pid.
+		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
+		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		vvlog "Done\n"
+	fi
+
+	best_servers=$( \
+		$curl \
+			--connect-timeout ${config["CONN_TIMEOUT"]} \
+			$VPN_RECOMMENDED_URL \
+	)
+
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Mending DNS lookup and stat fetch hole in firewall... "
+		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
+		vvlog "Done\n"
+	fi
+
+	# Parse $best_servers.
+	best_hostnames=$(echo $best_servers | sed 's/"hostname":"/\n/g' | sed 's/\[.*\|.nordvpn.com".*//')
+	saveServers ${best_hostnames[@]}
+	retvar=${best_hostnames[@]}
+}
+
+
+
 # Usage:  getRecommendedServer
-# Before: Internet access is available.
+# Before: No VPN connection is up.
 # After:  If server fetching is successful, results of top-N
 #          servers is saved in topservers.conf
 #          If CONN_DEST_COUNTRY is set, then the top servers
@@ -405,6 +454,17 @@ function getRecommendedServer () {
 
 	vlog "Getting nord stats... "
 
+	# Open a hole in the firewall if on
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
+		# root does the DNS lookup of 'nordvpn.com', so we can't
+		# restrict DNS lookups to current user/pid.
+		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
+		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		vvlog "Done\n"
+	fi
+
 	stats=""
 	if [[ isConnectionAvailabe ]]
 	then
@@ -414,6 +474,15 @@ function getRecommendedServer () {
 				--connect-timeout ${config["CONN_TIMEOUT"]} \
 				$VPN_STATS_URL \
 		)
+	fi
+
+	# Remove the rules set above.
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Mending DNS and stat fetch hole in firewall... "
+		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
+		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		vvlog "Done\n"
 	fi
 
 	# if no internet, load best servers.
@@ -435,17 +504,26 @@ function getRecommendedServer () {
 		vlog "Done\n"
 	fi
 
-	# Filter collected statistics to reveal top N servers in terms of least load.
+
+	# Server name search.
+	server_grep='[a-z0-9]'
+
 	if [[ ${config["OBFUSCATED"]} -eq 1 ]]
 	then
 		elog "Obfuscated server select has not been implemented yet.\n"
 	fi
+	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
+	then
+		server_grep="${config['CONN_DEST_COUNTRY']}[0-9]"
+	fi
+
+	# Filter collected statistics to reveal top N servers in terms of least load.
 	selected_servers=$( \
 		echo $stats \
 		| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
 		| $sed 's/^"\(\w\{2\}\)\([^.]\+\)\.nordvpn\.com":{"percent":\(\w\+\)}$/\3 \1\2/' \
 		| grep "$(ls -l $OVPN_DIR/ovpn_${config["CONN_TYPE"]} \
-		| grep "[a-z0-9]\+.nordvpn" \
+		| grep "$server_grep\+.nordvpn" \
 		| $sed 's/.*\([a-z]\{2\}[0-9]\+\)\.nordvpn\.com.*/\1/')" \
 		| sort -n \
 		| cut -d ' ' -f 2 \
@@ -453,24 +531,6 @@ function getRecommendedServer () {
 		| shuf \
 		| head -n ${config["NUM_SERVERS"]} \
 	)
-	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
-	then
-		# TODO Don't have this duplicated.
-		#      Handle having a country set properly, not by copy-paste.
-		selected_servers=$( \
-			echo $stats \
-			| $sed 's/^{\|}$//g' | $sed 's/,/\n/g' \
-			| $sed 's/^"\(\w\{2\}\)\([^.]\+\)\.nordvpn\.com":{"percent":\(\w\+\)}$/\3 \1\2/' \
-			| grep "$(ls -l $OVPN_DIR/ovpn_${config["CONN_TYPE"]} \
-			| grep "${config["CONN_DEST_COUNTRY"]}[0-9]\+.nordvpn" \
-			| $sed 's/.*\([a-z]\{2\}[0-9]\+\)\.nordvpn\.com.*/\1/')" \
-			| sort -n \
-			| cut -d ' ' -f 2 \
-			| head -n `expr 5 \* ${config["NUM_SERVERS"]}` \
-			| shuf \
-			| head -n ${config["NUM_SERVERS"]} \
-		)
-	fi
 
 	# Initialize server list, and ping times
 	servers=()
@@ -483,16 +543,17 @@ function getRecommendedServer () {
 	done
 	vvlog "\n"
 
-	# Pinging over VPN is meaningless.
-	# If a VPN connection is up, only save low-load servers.
-	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
-	then
-		vlog "Kill switch is blocking pinging.\n"
-		saveServers ${servers[@]}
-		exit 0
-	fi
+
+	interface=$(nmcli connection show --active | grep 'wifi\|eth' | sed 's/.*\s\(\w\+\)/\1/')
 
 	vlog "Starting pinging of top servers.\n"
+	# Allow pinging despite killswitch.
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Punching pinging hole in firewall... "
+		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol icmp -m owner --uid-owner $UID --jump ACCEPT
+		vvlog "Done\n"
+	fi
 	# Ping top n servers to find the nearest
 	#  (assuming ping time correlates with distance)
 	for key in ${!servers[@]}
@@ -501,6 +562,7 @@ function getRecommendedServer () {
 
 		times=$( \
 			ping ${servers[$key]}.nordvpn.com \
+				-I $interface \
 				-c ${config["PING_NUM"]} \
 				-i ${config["PING_INTERVAL"]} -q \
 			| grep "rtt min/avg/max/mdev" \
@@ -509,6 +571,7 @@ function getRecommendedServer () {
 		if [[ -z $times ]]; then
 			elog "Unable to ping NordVPN server ${servers[$key]}.\n"
 			unset servers[$key]
+			unset ping_times[$key]
 			continue
 			return 1
 		fi
@@ -518,6 +581,13 @@ function getRecommendedServer () {
 			$sed 's/^.*min\/avg\/max\/mdev = [0-9.]\+\/\([0-9]\+\).*$/\1/' \
 		)
 	done
+	# Mend killswitch ping hole.
+	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
+	then
+		vvlog "Mending pinging hole in firewall... "
+		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol icmp -m owner --uid-owner $UID --jump ACCEPT
+		vvlog "Done\n"
+	fi
 
 	# Ensure all threads have completed
 	vlog "Servers with lowest load have been pinged.\n"
@@ -632,7 +702,8 @@ function getLogin () {
 function disconnect () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	output=$(nmcli connection show | grep ${config["CONN_DEST"]})
-	vvlog "nmcli search results:\n{$output}\n"
+	vvlog "nmcli search results:\n{$output}"
+	vvlog "\n"
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
 	then
 		vlog "No connection active. Aborting!\n"
@@ -662,42 +733,51 @@ function connect () {
 		log "Already connected to ${config["CONN_DEST"]}.\n"
 		return 0
 	fi
-	getRecommendedServer
-	updateConfig "CONN_DEST" $retvar
+
+	# Remove last connection; The connection might have dropped,
+	# and the last connection is still in network manager.
+	vvlog "Disconnecting first in case of old connection remnants\n"
+	disconnect
+
 	# If credentials are not stored, request them.
 	if [[ ! -f $AUTH_FILE ]]; then
 		getLogin
 	fi
+	getRecommendedServer_new
+	top_servers=$retvar
+
 	# Connect to NordVPN
-	vlog "Connecting to NordVPN... "
+	vlog "Now connecting to NordVPN.\n"
 	vvlog "\n"
-	# Punch hole in firewall
-	firewallPunch ${config["CONN_DEST"]}
-	dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
-	
-	code=0
-	output=$( $nmcli connection import type openvpn file \
-		"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
-	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-	output=$( $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
-	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-	output=$( $nmcli connection up $dest passwd-file $AUTH_FILE )
-	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-	
-	if [[ $code != 0 ]]
-	then
-		elog "Something came up."
-		disconnect
-		return 1
-	fi
-	vlog "Done\n"
-	log "Successfully connected to ${config["CONN_DEST"]}.\n"
-	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
-	then
-		vlog "Kill switch is on, so we did not fetch new stats.\n"
-		vlog "Fetching new stats in the background now.\n"
-		(2>/dev/null getRecommendedServer) &
-	fi
+	for server in $top_servers
+	do
+		updateConfig "CONN_DEST" $server
+
+		# Punch hole in firewall
+		firewallPunch ${config["CONN_DEST"]}
+		dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
+
+		code=0
+		output=$( $nmcli connection import type openvpn file \
+			"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
+		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		output=$( $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
+		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		output=$( $nmcli connection up $dest passwd-file $AUTH_FILE )
+		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+
+		if [[ $code != 0 ]]
+		then
+			#elog "Something came up.\n"
+			vvlog "Disconnecting now.\n"
+			disconnect
+			continue
+		fi
+		log "Successfully connected to ${config["CONN_DEST"]}.\n"
+		return 0
+	done
+	elog "Something came up.\n"
+	return 1
 }
 
 # Usage:  setup
@@ -795,6 +875,7 @@ function printHelp () {
 	log "                        obfuscated [on|off]\n"
 	log "                        autostart  [on|off]\n"
 	log "\n"
+	return 0
 }
 
 
@@ -873,26 +954,18 @@ function main () {
 					return 1
 				fi
 				vlog "Setting $1 to $2.\n"
-				key=$1
+				option_key=$1
 				val=$2
-				if   [[ $2 == "on"  ]]; then val=1
-				elif [[ $2 == "off" ]]; then val=0
-				elif [[ $2 == 0     ]]; then val=0
-				elif [[ $2 == 1     ]]; then val=1
+				if   [[ $val == "on"  ]]; then val=1
+				elif [[ $val == "off" ]]; then val=0
+				elif [[ $val == 0     ]]; then val=0
+				elif [[ $val == 1     ]]; then val=1
 				fi
 
-				if   [[ $1 == "country" ]]; then key="conn_dest_country"; fi
-				if [[ $key == "verbose" && $val -eq 0 ]]; then (updateConfig "VVERBOSE" 0); fi
-				if [[ $key == "vverbose" && $val -eq 0 ]]; then (updateConfig "VVERBOSE" 0); fi
-				if [[ $1 == "protocol" ]]; then
-					key="conn_type"
-					[[ ! ( $2 == "tcp" || $2 == "TCP" ||
-						   $2 == "udp" || $2 == "UDP" ) ]] && invalidParam
-					vvlog "Configuring protocol $val, but transforming it to "
-					val=$(toLower $val)
-					vvlog "$val.\n"
-				fi
-				if [[ $1 == "autostart" ]]
+				# Transform command line options to keys.
+				if [[ $option_key == "country" ]]; then option_key="conn_dest_country"
+				elif [[ $option_key == "protocol" ]]; then option_key="conn_type"
+				elif [[ $option_key == "autostart" ]]
 				then
 					elog "autostarting $PROGNAME has not been implemented yet.\n"
 					return 1
@@ -903,9 +976,18 @@ function main () {
 				then
 					killswitch $2
 					return 0
+				elif [[ $option_key == "conn_type" ]]
+				then
+					[[ ! ( $val == "tcp" || $val == "TCP" ||
+					       $val == "udp" || $val == "UDP" ) ]] && invalidParam
+					val=$(toLower $val)
+					vvlog "Updating connection port for $option_key.\n"
+					[[ $val == "tcp" ]] && updateConfig "CONN_PORT" 443
+					[[ $val == "udp" ]] && updateConfig "CONN_PORT" 1194
 				fi
 
-				updateConfig $(toUpper $key) $val
+				vlog "Transforming $option_key to $(toUpper $option_key)\n"
+				updateConfig $(toUpper $option_key) $val
 				return 0
 				;;
 			command)
