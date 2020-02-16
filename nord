@@ -678,11 +678,11 @@ function connect () {
 	code=0
 	output=$( $nmcli connection import type openvpn file \
 		"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
-	[[ $? != 0 ]] && code=1; vlog "${output[@]}\n"
+	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
 	output=$( $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
-	[[ $? != 0 ]] && code=1; vlog "${output[@]}\n"
+	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
 	output=$( $nmcli connection up $dest passwd-file $AUTH_FILE )
-	[[ $? != 0 ]] && code=1; vlog "${output[@]}\n"
+	[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
 	
 	if [[ $code != 0 ]]
 	then
@@ -690,6 +690,7 @@ function connect () {
 		disconnect
 		return 1
 	fi
+	vlog "Done\n"
 	log "Successfully connected to ${config["CONN_DEST"]}.\n"
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
