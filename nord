@@ -310,7 +310,7 @@ function getHostIP () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	dest_ip=$( \
 		grep "^remote " \
-		$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$1.nordvpn.com.tcp.ovpn \
+		$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$1.nordvpn.com.${config["CONN_TYPE"]}.ovpn \
 		| $sed 's/remote \(\(\w\+\.\?\)\+\) \w\+$/\1/' \
 	)
 	retvar="$dest_ip"
