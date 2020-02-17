@@ -220,7 +220,7 @@ function updateConfig () {
 	if [[ -z $(grep $1 $CONF_FILE) ]]
 	then
 		vvlog "Failed.\nNew config options are not allowed.\n"
-		elog "Invalig config '`toLower $1`'.\n"
+		elog "Invalid config '`toLower $1`'.\n"
 		return 0
 		sed -ci "$ a $1=$2" $CONF_FILE
 	else
