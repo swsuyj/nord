@@ -449,6 +449,16 @@ function getRecommendedServer_new () {
 		vvlog "Done\n"
 	fi
 
+	if [[ -z $best_servers ]]
+	then
+		elog "Fetching a good server failed.\n"
+		exit 1
+	elif [[ $best_servers == '[]' ]]
+	then
+		elog "Connection option is not available right now.\n"
+		exit 0
+	fi
+
 	# Parse $best_servers.
 	best_hostnames=$(echo $best_servers | sed 's/"hostname":"/\n/g' | sed 's/\[.*\|.nordvpn.com".*//')
 	vvlog "Top servers: ${best_hostnames[@]}\n"
