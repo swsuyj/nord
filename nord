@@ -25,11 +25,15 @@ TOP_SERVERS_FILE="$CONF_DIR/topservers.conf"
 VPN_FILE_URL="https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip"
 VPN_STATS_URL="https://nordvpn.com/api/server/stats"
 VPN_RECOMMENDED_URL="https://nordvpn.com/wp-admin/admin-ajax.php?action=servers_recommendations"
-VPN_RECOMMENDED_DOUBLE='&filters={%22servers_groups%22:[1]}'
-VPN_RECOMMENDED_DEDICATED='&filters={%22servers_groups%22:[9]}'
-VPN_RECOMMENDED_STANDARD='&filters={%22servers_groups%22:[11]}'
-VPN_RECOMMENDED_P2P='&filters={%22servers_groups%22:[15]}'
-VPN_RECOMMENDED_OBFUSCATED='&filters={%22servers_groups%22:[17]}'
+VPN_RECOMMENDED_DOUBLE='%22servers_groups%22:[1]'
+VPN_RECOMMENDED_DEDICATED='%22servers_groups%22:[9]'
+VPN_RECOMMENDED_STANDARD='%22servers_groups%22:[11]'
+VPN_RECOMMENDED_P2P='%22servers_groups%22:[15]'
+VPN_RECOMMENDED_OBFUSCATED='%22servers_groups%22:[17]'
+VPN_RECOMMENDED_UDP='%22servers_technologies%22:[3]'
+VPN_RECOMMENDED_TCP='%22servers_technologies%22:[5]'
+VPN_RECOMMENDED_OBF_UDP='%22servers_technologies%22:[15]'
+VPN_RECOMMENDED_OBF_TCP='%22servers_technologies%22:[17]'
 VPN_CONN_TYPE='standard'
 CONN_DEST=""
 # TODO use only country code
@@ -426,19 +430,31 @@ function getRecommendedServer_new () {
 	fi
 
 	filter=''
+	technology=''
 	  if [[ ${config['DOUBLE_VPN']}   -eq 1 ]]; then filter=$VPN_RECOMMENDED_DOUBLE
 	elif [[ ${config['DEDICATED_IP']} -eq 1 ]]; then filter=$VPN_RECOMMENDED_DEDICATED
 	elif [[ ${config['STANDARD']}     -eq 1 ]]; then filter=$VPN_RECOMMENDED_STANDARD
 	elif [[ ${config['P2P']}          -eq 1 ]]; then filter=$VPN_RECOMMENDED_P2P
 	elif [[ ${config['OBFUSCATED']}   -eq 1 ]]; then filter=$VPN_RECOMMENDED_OBFUSCATED
 	fi
+
+	  if [[ ${config['CONN_TYPE']} == 'udp' && ${config['OBFUSCATED']} -eq 1 ]]; then technology=$VPN_RECOMMENDED_OBF_UDP
+	elif [[ ${config['CONN_TYPE']} == 'tcp' && ${config['OBFUSCATED']} -eq 1 ]]; then technology=$VPN_RECOMMENDED_OBF_TCP
+	elif [[ ${config['CONN_TYPE']} == 'udp' ]]; then technology=$VPN_RECOMMENDED_UDP
+	elif [[ ${config['CONN_TYPE']} == 'tcp' ]]; then technology=$VPN_RECOMMENDED_TCP
+	fi
+
+	url=$VPN_RECOMMENDED_URL'&filters={'$filter','$technology'}'
+
 	vvlog "Setting recommendation filter to $filter\n"
-	vvlog "and fetching recommendation now from\n$VPN_RECOMMENDED_URL$filter\n"
+	vvlog "and technology to $technology\n"
+	vvlog "and fetching recommendation now from\n$url\n"
+
 	best_servers=$( \
 		$curl -g \
 			--silent \
 			--connect-timeout ${config["CONN_TIMEOUT"]} \
-			$VPN_RECOMMENDED_URL$filter \
+			$url \
 	)
 
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
@@ -455,7 +471,7 @@ function getRecommendedServer_new () {
 		exit 1
 	elif [[ $best_servers == '[]' ]]
 	then
-		elog "Connection option is not available right now.\n"
+		elog "Connecting by ${config['CONN_METHOD']} is not working at the moment.\n"
 		exit 0
 	fi
 
@@ -753,7 +769,6 @@ function disconnect () {
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
 	then
 		vlog "No connection active. Aborting!\n"
-		log "No active connection.\n"
 		return 1
 	fi
 	connectionCleanup
@@ -979,6 +994,7 @@ function main () {
 					else
 						updateConfig "CONN_DEST_COUNTRY" $2
 					fi
+					updateConfig 'CONN_METHOD' $2 'nosave'
 				fi
 				connect
 				return 0
