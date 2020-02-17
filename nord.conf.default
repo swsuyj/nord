@@ -14,8 +14,10 @@ NUM_SERVERS=10
 CONN_TIMEOUT=5
 
 ## Kill switch
-# 1 for on, 0 for off
 KILL_SWITCH=0
+
+# Obfuscated server selection
+OBFUSCATED=0
 
 ## Verbosity
 VERBOSE=0
