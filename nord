@@ -988,9 +988,10 @@ function main () {
 					elif [[ $(toLower $2) == "obfuscated" ]]
 					then
 						updateConfig 'OBFUSCATED' 1 'nosave'
-					elif [[ $(checkLegalCountry $2) -ne 0 ]]
+					elif [[ ! $(checkLegalCountry $2) ]]
 					then
-						elog "Illegal country code."
+						printHelp
+						exit 1
 					else
 						updateConfig "CONN_DEST_COUNTRY" $2
 					fi
