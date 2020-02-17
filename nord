@@ -25,6 +25,12 @@ TOP_SERVERS_FILE="$CONF_DIR/topservers.conf"
 VPN_FILE_URL="https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip"
 VPN_STATS_URL="https://nordvpn.com/api/server/stats"
 VPN_RECOMMENDED_URL="https://nordvpn.com/wp-admin/admin-ajax.php?action=servers_recommendations"
+VPN_RECOMMENDED_DOUBLE='&filters={%22servers_groups%22:[1]}'
+VPN_RECOMMENDED_DEDICATED='&filters={%22servers_groups%22:[9]}'
+VPN_RECOMMENDED_STANDARD='&filters={%22servers_groups%22:[11]}'
+VPN_RECOMMENDED_P2P='&filters={%22servers_groups%22:[15]}'
+VPN_RECOMMENDED_OBFUSCATED='&filters={%22servers_groups%22:[17]}'
+VPN_CONN_TYPE='standard'
 CONN_DEST=""
 # TODO use only country code
 CONN_DEST_DEFAULT="nl690"
@@ -935,12 +941,24 @@ function main () {
 				if [[ -n $2 ]]
 				then
 					# Ensure the country code is legal.
-					if [[ $(checkLegalCountry $2) -ne 0 ]]
+					if [[ $(toLower $2) == "double" ]]
 					then
-						log "Illegal country code."
-						return 1
+						updateConfig 'DOUBLE_VPN' 1 'nosave'
+					elif [[ $(toLower $2) == "dedicated" ]]
+					then
+						updateConfig 'DEDICATED_IP' 1 'nosave'
+					elif [[ $(toLower $2) == "p2p" ]]
+					then
+						updateConfig 'P2P' 1 'nosave'
+					elif [[ $(toLower $2) == "obfuscated" ]]
+					then
+						updateConfig 'OBFUSCATED' 1 'nosave'
+					elif [[ $(checkLegalCountry $2) -ne 0 ]]
+					then
+						elog "Illegal country code."
+					else
+						updateConfig "CONN_DEST_COUNTRY" $2
 					fi
-					updateConfig "CONN_DEST_COUNTRY" $2
 				fi
 				connect
 				return 0
