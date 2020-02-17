@@ -387,11 +387,7 @@ function firewallUnpunch () {
 #         Otherwise returns 1.
 function isConnectionAvailable () {
 	vvlog "A connection is "
-	if [[ -n $(nmcli connection show --active) && \
-			(${config["KILL_SWITCH"]} -eq 1 && \
-			-n $(nmcli connection show --active | grep nordvpn) || \
-			${config["KILL_SWITCH"]} -eq 0) \
-		]]
+	if [[ -n $(nmcli connection show --active) ]]
 	then
 		vvlog "available.\n"
 		return 0
@@ -412,7 +408,11 @@ function isConnectionAvailable () {
 function getRecommendedServer_new () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 
-	[[ ! isConnectionAvailable ]] && return 1
+	if [[ ! isConnectionAvailable ]]
+	then
+		elog "No internet connection.\n"
+		exit 1
+	fi
 
 	# Open a hole in the firewall if on
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
