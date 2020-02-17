@@ -814,12 +814,12 @@ function connect () {
 		dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
 
 		code=0
-		output=$(2>&1  $nmcli connection import type openvpn file \
+		output=$(2>&1 $nmcli connection import type openvpn file \
 			"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-		output=$(2>&1  $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
+		output=$(2>&1 $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-		output=$(2>&1  $nmcli connection up $dest passwd-file $AUTH_FILE )
+		output=$(2>&1 $nmcli connection up $dest passwd-file $AUTH_FILE )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
 
 		if [[ $code != 0 ]]
