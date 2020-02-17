@@ -34,6 +34,7 @@ VPN_RECOMMENDED_UDP='%22servers_technologies%22:[3]'
 VPN_RECOMMENDED_TCP='%22servers_technologies%22:[5]'
 VPN_RECOMMENDED_OBF_UDP='%22servers_technologies%22:[15]'
 VPN_RECOMMENDED_OBF_TCP='%22servers_technologies%22:[17]'
+VPN_RECOMMENDED_COUNTRY='%22country_id%22:'
 VPN_CONN_TYPE='standard'
 CONN_DEST=""
 # TODO use only country code
@@ -53,8 +54,6 @@ VVERBOSE=1
 KILL_SWITCH=0
 CONF_LOADED=0
 
-typeset -A config
-
 typeset -A nosave
 nosave=()
 retvar=""
@@ -70,6 +69,19 @@ config=(
 	["NUM_SERVERS"]=$NUM_SERVERS
 	["CONN_TIMEOUT"]=$CONN_TIMEOUT
 )
+
+typeset -A COUNTRY_ID
+COUNTRY_ID=(
+	['al']=2 ['ar']=10 ['au']=13 ['at']=14 ['be']=21 ['ba']=27 ['br']=30
+	['bg']=33 ['ca']=38 ['cl']=43 ['cr']=52 ['hr']=54 ['cy']=56 ['cz']=57
+	['dk']=58 ['ee']=68 ['fi']=73 ['fr']=74 ['ge']=80 ['de']=81 ['gr']=84
+	['hk']=97 ['hu']=98 ['is']=99 ['in']=100 ['id']=101 ['ie']=104 ['il']=105
+	['it']=106 ['jp']=108 ['kr']=114 ['lv']=119 ['lu']=126 ['mk']=128 ['my']=131
+	['mx']=140 ['md']=142 ['nl']=153 ['nz']=156 ['no']=163 ['pl']=174 ['pt']=175
+	['ro']=179 ['rs']=192 ['sg']=195 ['sk']=196
+)
+
+
 
 
 
@@ -328,10 +340,10 @@ function getHostIP () {
 # After:  firewalld contains an exception to allow traffic to x over tun0
 function firewallPunch () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	vlog "Punching hole in firewall for $1... "
+	vvlog "Punching hole in firewall for $1... "
 	if [[ ${config["KILL_SWITCH"]} -eq 0 || $1 == $nowhere ]]
 	then
-		vlog "Kill switch is off. Aborting!\n"
+		vvlog "Kill switch is off. Aborting!\n"
 		return 0
 	fi
 
@@ -348,9 +360,9 @@ function firewallPunch () {
 		--jump ACCEPT
 	if [[ $? ]]
 	then
-		vlog "Done\n"
+		vvlog "Done\n"
 	else
-		vlog "Failed\n"
+		vvlog "Failed\n"
 	fi
 }
 
@@ -364,7 +376,7 @@ function firewallUnpunch () {
 	then
 		return 0
 	fi
-	vlog "Mending hole in firewall for $1... "
+	vvlog "Mending hole in firewall for $1... "
 	getHostIP $1
 	dest_ip=$retvar
 	sudo $fwd \
@@ -378,9 +390,9 @@ function firewallUnpunch () {
 		--jump ACCEPT
 	if [[ $? ]]
 	then
-		vlog "Done\n"
+		vvlog "Done\n"
 	else
-		vlog "Failed\n"
+		vvlog "Failed\n"
 	fi
 }
 
@@ -444,7 +456,18 @@ function getRecommendedServer_new () {
 	elif [[ ${config['CONN_TYPE']} == 'tcp' ]]; then technology=$VPN_RECOMMENDED_TCP
 	fi
 
-	url=$VPN_RECOMMENDED_URL'&filters={'$filter','$technology'}'
+	if [[ ${config['CONN_DEST_COUNTRY']} != $nowhere ]]
+	then
+		technology=''
+		country=$VPN_RECOMMENDED_COUNTRY${COUNTRY_ID[${config['CONN_DEST_COUNTRY']}]}
+	fi
+
+	url=$VPN_RECOMMENDED_URL'&filters={'
+	[[ -n $technology ]] && url+=$technology
+	[[ -n $filter ]] && url+=','$filter
+	[[ -n $country ]] && url+=','$country
+	url+='}'
+	vlog "Note: Only allowing to connect with either country or specialty server (obfuscated, p2p, double, dedicated).\n"
 
 	vvlog "Setting recommendation filter to $filter\n"
 	vvlog "and technology to $technology\n"
@@ -824,9 +847,9 @@ function connect () {
 
 		if [[ $code != 0 ]]
 		then
-			#elog "Something came up.\n"
+			vlog "Connecting to ${config["CONN_DEST"]} failed.\n"
 			vvlog "Disconnecting now.\n"
-			disconnect
+			connectionCleanup
 			continue
 		fi
 		log "Successfully connected to ${config["CONN_DEST"]}.\n"
