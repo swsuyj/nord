@@ -757,7 +757,7 @@ function connect () {
 
 	# Remove last connection; The connection might have dropped,
 	# and the last connection is still in network manager.
-	vvlog "Disconnecting first in case of old connection remnants\n"
+	vvlog "Cleaning up last connection.\n"
 	connectionCleanup
 
 	# If credentials are not stored, request them.
