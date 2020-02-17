@@ -419,6 +419,7 @@ function getRecommendedServer_new () {
 
 	best_servers=$( \
 		$curl \
+			--silent \
 			--connect-timeout ${config["CONN_TIMEOUT"]} \
 			$VPN_RECOMMENDED_URL \
 	)
@@ -471,6 +472,7 @@ function getRecommendedServer () {
 		vvlog "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}.\n"
 		stats=$( \
 			$curl \
+				--silent \
 				--connect-timeout ${config["CONN_TIMEOUT"]} \
 				$VPN_STATS_URL \
 		)
