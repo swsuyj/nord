@@ -391,7 +391,7 @@ function firewallUnpunch () {
 #         Otherwise returns 1.
 function isConnectionAvailable () {
 	vvlog "A connection is "
-	if [[ -n $(nmcli connection show --active) ]]
+	if [[ -n $($nmcli connection show --active) ]]
 	then
 		vvlog "available.\n"
 		return 0
@@ -590,7 +590,7 @@ function getRecommendedServer () {
 	vvlog "\n"
 
 
-	interface=$(nmcli connection show --active | grep 'wifi\|eth' | sed 's/.*\s\(\w\+\)/\1/')
+	interface=$($nmcli connection show --active | grep 'wifi\|eth' | sed 's/.*\s\(\w\+\)/\1/')
 
 	vlog "Starting pinging of top servers.\n"
 	# Allow pinging despite killswitch.
@@ -750,7 +750,7 @@ function connectionCleanup () {
 	then
 		return 0
 	fi
-	output=$($nmcli connection delete "${config['CONN_DEST']}.nordvpn.com.${config['CONN_TYPE']}")
+	output=$(2>&1 $nmcli connection delete "${config['CONN_DEST']}.nordvpn.com.${config['CONN_TYPE']}")
 	vvlog $output
 	updateConfig "CONN_DEST" $nowhere
 	updateConfig "CONN_DEST_COUNTRY" $nowhere
@@ -763,7 +763,7 @@ function connectionCleanup () {
 # After:  The connection has been terminated.
 function disconnect () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	output=$(nmcli connection show | grep ${config["CONN_DEST"]})
+	output=$($nmcli connection show | grep ${config["CONN_DEST"]})
 	vvlog "nmcli search results:\n{$output}"
 	vvlog "\n"
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
@@ -782,7 +782,7 @@ function disconnect () {
 function connect () {
 	checkSetup
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	nmcli connection show --active | grep nordvpn &>/dev/null
+	$nmcli connection show --active | grep nordvpn &>/dev/null
 	if [[ $? -eq 0 ]]
 	then
 		vlog "There is already a VPN connection up.\n"
@@ -814,12 +814,12 @@ function connect () {
 		dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
 
 		code=0
-		output=$( $nmcli connection import type openvpn file \
+		output=$(2>&1  $nmcli connection import type openvpn file \
 			"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-		output=$( $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
+		output=$(2>&1  $nmcli connection modify $dest vpn.user-name ${config["USERNAME"]} )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
-		output=$( $nmcli connection up $dest passwd-file $AUTH_FILE )
+		output=$(2>&1  $nmcli connection up $dest passwd-file $AUTH_FILE )
 		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
 
 		if [[ $code != 0 ]]
