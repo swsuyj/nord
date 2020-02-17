@@ -425,11 +425,20 @@ function getRecommendedServer_new () {
 		vvlog "Done\n"
 	fi
 
+	filter=''
+	  if [[ ${config['DOUBLE_VPN']}   -eq 1 ]]; then filter=$VPN_RECOMMENDED_DOUBLE
+	elif [[ ${config['DEDICATED_IP']} -eq 1 ]]; then filter=$VPN_RECOMMENDED_DEDICATED
+	elif [[ ${config['STANDARD']}     -eq 1 ]]; then filter=$VPN_RECOMMENDED_STANDARD
+	elif [[ ${config['P2P']}          -eq 1 ]]; then filter=$VPN_RECOMMENDED_P2P
+	elif [[ ${config['OBFUSCATED']}   -eq 1 ]]; then filter=$VPN_RECOMMENDED_OBFUSCATED
+	fi
+	vvlog "Setting recommendation filter to $filter\n"
+	vvlog "and fetching recommendation now from\n$VPN_RECOMMENDED_URL$filter\n"
 	best_servers=$( \
-		$curl \
+		$curl -g \
 			--silent \
 			--connect-timeout ${config["CONN_TIMEOUT"]} \
-			$VPN_RECOMMENDED_URL \
+			$VPN_RECOMMENDED_URL$filter \
 	)
 
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
@@ -442,6 +451,7 @@ function getRecommendedServer_new () {
 
 	# Parse $best_servers.
 	best_hostnames=$(echo $best_servers | sed 's/"hostname":"/\n/g' | sed 's/\[.*\|.nordvpn.com".*//')
+	vvlog "Top servers: ${best_hostnames[@]}\n"
 	saveServers ${best_hostnames[@]}
 	retvar=${best_hostnames[@]}
 }
