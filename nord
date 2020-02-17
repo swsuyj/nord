@@ -375,11 +375,11 @@ function firewallUnpunch () {
 }
 
 
-# Usage:  isConnectionAvailabe 
+# Usage:  isConnectionAvailable 
 # Before: Nothing.
 # After:  Returns 0 if a connection is available.
 #         Otherwise returns 1.
-function isConnectionAvailabe () {
+function isConnectionAvailable () {
 	vvlog "A connection is "
 	if [[ -n $(nmcli connection show --active) && \
 			(${config["KILL_SWITCH"]} -eq 1 && \
@@ -405,6 +405,8 @@ function isConnectionAvailabe () {
 #          file if no connectivity).
 function getRecommendedServer_new () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
+
+	[[ isConnectionAvailable
 
 	# Open a hole in the firewall if on
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
@@ -467,7 +469,7 @@ function getRecommendedServer () {
 	fi
 
 	stats=""
-	if [[ isConnectionAvailabe ]]
+	if [[ isConnectionAvailable ]]
 	then
 		vvlog "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}.\n"
 		stats=$( \
