@@ -406,7 +406,7 @@ function isConnectionAvailable () {
 function getRecommendedServer_new () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 
-	[[ isConnectionAvailable
+	[[ ! isConnectionAvailable ]] && return 1
 
 	# Open a hole in the firewall if on
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
@@ -700,6 +700,22 @@ function getLogin () {
 }
 
 
+# Usage:  connectionCleanup
+# Before: Last connection might still be present in networkmanager.
+# After:  Remnants from last connection has been removed.
+function connectionCleanup () {
+	if [[ ${config["CONN_DEST"]} == $nowhere ]]
+	then
+		return 0
+	fi
+	output=$($nmcli connection delete "${config['CONN_DEST']}.nordvpn.com.${config['CONN_TYPE']}")
+	vvlog $output
+	updateConfig "CONN_DEST" $nowhere
+	updateConfig "CONN_DEST_COUNTRY" $nowhere
+	firewallUnpunch ${config["CONN_DEST"]}
+}
+
+
 # Usage:  disconnect
 # Before: A connection is up to Nord
 # After:  The connection has been terminated.
@@ -714,12 +730,7 @@ function disconnect () {
 		log "No active connection.\n"
 		return 1
 	fi
-	dest="${config["CONN_DEST"]}.nordvpn.com.${config["CONN_TYPE"]}"
-	output=$($nmcli connection delete $dest)
-	vlog "${output[@]}\n"
-	firewallUnpunch ${config["CONN_DEST"]}
-	updateConfig "CONN_DEST" $nowhere
-	updateConfig "CONN_DEST_COUNTRY" $nowhere
+	connectionCleanup
 	log "Successfully disconnected.\n"
 }
 
