@@ -951,7 +951,7 @@ function setup () {
 	# If the cache has vpn files zipped, they might be old.
 	# Let the user decide if they need updating.
 	# If no cache, the zip file is downloaded.
-	if [[ -e ${config["VPN_FILES"]} ]]
+	if [[ -e $VPN_FILES && ${config['CACHE']} != 1 ]]
 	then
 		log "\nCached vpn files found. Do you want to use them? [y/n] "
 		answered=0
@@ -971,7 +971,8 @@ function setup () {
 				log "Incorrect answer. Do you want to use the cached files? [y/n] "
 			fi
 		done
-	else
+	elif [[ ${config['CACHE']} != 1 ]]
+	then
 		$wget -O $VPN_FILES $VPN_FILE_URL
 	fi
 
@@ -1107,6 +1108,10 @@ function main () {
 			teardown)
 				teardown
 				return 0
+				;;
+			-c|--cache)
+				updateConfig 'CACHE' 1 'nosave'
+				shift
 				;;
 			s|setup)
 				setup
