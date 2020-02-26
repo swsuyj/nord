@@ -418,6 +418,34 @@ function isConnectionAvailable () {
 }
 
 
+# Usage:  isConnectionActive
+# Before: Nothing.
+# After:  Returns 0 if a NordVPN connection is up.
+#         Otherwise returns 1.
+function isConnectionActive () {
+	vvlog "A connection is "
+	if [[ -n $($nmcli connection show --active | grep nordvpn) ]]
+	then
+		vvlog "active.\n"
+		return 0
+	fi
+	vvlog "not active.\n"
+	return 1
+}
+
+
+# Usage:  ensureConnectivity
+# Before: Nothing.
+# After:  If there was an active NordVPN connection, nothing happens.
+#          Otherwise a connection is established, but only if autoconnect is on.
+function ensureConnectivity () {
+	if [[ ${config['AUTOCONNECT']} -eq 1 && ! isConnectionActive ]]
+	then
+		connect
+	fi
+}
+
+
 # Usage:  getRecommendedServer_new
 # Before: No VPN connection is up.
 # After:  If server fetching is successful, results of top-N
