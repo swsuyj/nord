@@ -971,6 +971,7 @@ function setup () {
 				log "Incorrect answer. Do you want to use the cached files? [y/n] "
 			fi
 		done
+		log "\n"
 	elif [[ ${config['CACHE']} != 1 ]]
 	then
 		$wget -O $VPN_FILES $VPN_FILE_URL
@@ -980,7 +981,7 @@ function setup () {
 	mkdir -p $OVPN_DIR
 	$unzip -q $VPN_FILES -d $OVPN_DIR
 
-	vlog "Done\n"
+	log "Done\n"
 	return 0
 }
 
@@ -1024,7 +1025,7 @@ function printHelp () {
 	log "                        killswitch [on|off]     Requires root access.\n"
 	log "                        protocol   [tcp|udp]\n"
 	log "                        obfuscated [on|off]\n"
-	log "                        autostart  [on|off]\n"
+	log "                        autoconnect  [on|off]\n"
 	log "\n"
 	return 0
 }
