@@ -16,6 +16,8 @@ DATA_DIR="$HOME/.local/share/nord"
 CACHE_DIR="$HOME/.cache/nord"
 [[ -n $XDG_CACHE_HOME ]] && CONF_DIR="$XDG_CACHE_HOME/nord"
 OVPN_DIR="$DATA_DIR/ovpn"
+SYSTEMD_DIR="$HOME/.config/systemd/user"
+BINDIR="$HOME/.local/bin"
 CONN_TYPE="tcp"
 CONF_FILE="$CONF_DIR/nord.conf"
 CONN_NAME="current_connection"
@@ -872,10 +874,16 @@ function setup () {
 	then
 		rm -r $OVPN_DIR
 	fi
-	mkdir -p $DATA_DIR $CONF_DIR $CACHE_DIR
+	mkdir -p $DATA_DIR $CONF_DIR $CACHE_DIR $SYSTEMD_DIR $BINDIR
 
 	# Set up default config
-	cat $(dirname $0)/nord.conf.default > $CONF_FILE
+	cp $PROGNAME.conf.default $CONF_FILE
+	cp $PROGNAME.service $SYSTEMD_DIR
+	sed -ci "s:\$HOME:$HOME:g" $SYSTEMD_DIR/$PROGNAME.service
+	cp $PROGNAME.timer $SYSTEMD_DIR
+	cp $PROGNAME $DATA_DIR
+	chmod 755 $DATA_DIR/$PROGNAME
+	2>/dev/null ln $DATA_DIR/$PROGNAME $BINDIR
 	
 	# If the cache has vpn files zipped, they might be old.
 	# Let the user decide if they need updating.
