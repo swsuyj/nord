@@ -837,11 +837,18 @@ function disconnect () {
 	vvlog "\n"
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
 	then
-		vlog "No connection active. Aborting!\n"
+		log "No connection active. Aborting!\n"
 		return 1
 	fi
+	output=$(2>&1 $nmcli connection down "${config['CONN_DEST']}.nordvpn.com.${config['CONN_TYPE']}")
+	vvlog $output
 	connectionCleanup
-	log "Successfully disconnected.\n"
+	if [[ $? ]]
+	then
+		log "Successfully disconnected.\n"
+	else
+		elog "Error when disconnecting.\n"
+	fi
 }
 
 
