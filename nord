@@ -89,6 +89,7 @@ COUNTRY_ID=(
 
 # Basic logging/output
 function log () {
+	[[ ${config['QUIET']} ]] && return 0
 	echo -ne "$1"
 }
 
@@ -99,6 +100,7 @@ function elog () {
 
 # Verbose logging
 function vlog () {
+	[[ ${config['QUIET']} ]] && return 0
 	if [[ ${config["VERBOSE"]} -eq 1 || ${config["VVERBOSE"]} -eq 1 ]]
 	then
 		echo -ne "$@"
@@ -107,6 +109,7 @@ function vlog () {
 
 # Very verbose logging
 function vvlog () {
+	[[ ${config['QUIET']} ]] && return 0
 	if [[ ${config["VVERBOSE"]} -eq 1 ]]
 	then
 		echo -ne "$@"
@@ -992,14 +995,16 @@ function main () {
 		cmd=$1
 
 		case $cmd in
+			-q|--quiet)
+				updateConfig "QUIET" 1 "nosave"
+				shift
+				;;
 			-v|--verbose)
 				updateConfig "VERBOSE" 1 "nosave"
-				loadConfig
 				shift
 				;;
 			-vv|--very-verbose)
 				updateConfig "VVERBOSE" 1 "nosave"
-				loadConfig
 				shift
 				;;
 			c|connect)
