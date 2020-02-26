@@ -180,9 +180,9 @@ function loadConfig () {
 
 	# Copy temp to permanent config
 	config=()
-	for key in "${!temp_config[@]}"
+	for config_key in "${!temp_config[@]}"
 	do
-		config["$key"]="${temp_config[$key]}"
+		config["$config_key"]="${temp_config[$config_key]}"
 	done
 
 	# Load configs the nosaved config
@@ -630,12 +630,12 @@ function getRecommendedServer () {
 	fi
 	# Ping top n servers to find the nearest
 	#  (assuming ping time correlates with distance)
-	for key in ${!servers[@]}
+	for server_key in ${!servers[@]}
 	do
 		# TODO parallelize this loop
 
 		times=$( \
-			ping ${servers[$key]}.nordvpn.com \
+			ping ${servers[$server_key]}.nordvpn.com \
 				-I $interface \
 				-c ${config["PING_NUM"]} \
 				-i ${config["PING_INTERVAL"]} -q \
@@ -643,14 +643,14 @@ function getRecommendedServer () {
 		)
 
 		if [[ -z $times ]]; then
-			elog "Unable to ping NordVPN server ${servers[$key]}.\n"
-			unset servers[$key]
-			unset ping_times[$key]
+			elog "Unable to ping NordVPN server ${servers[$server_key]}.\n"
+			unset servers[$server_key]
+			unset ping_times[$server_key]
 			continue
 			return 1
 		fi
 
-		ping_times[$key]=$( \
+		ping_times[$server_key]=$( \
 			echo $times | \
 			$sed 's/^.*min\/avg\/max\/mdev = [0-9.]\+\/\([0-9]\+\).*$/\1/' \
 		)
