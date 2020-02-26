@@ -497,8 +497,8 @@ function getRecommendedServer_new () {
 
 	url=$VPN_RECOMMENDED_URL'&filters={'
 	[[ -n $technology ]] && url+=$technology
+	[[ -n $country ]] && url+=$country
 	[[ -n $filter ]] && url+=','$filter
-	[[ -n $country ]] && url+=','$country
 	url+='}'
 	vlog "Note: Only allowing to connect with either country or specialty server (obfuscated, p2p, double, dedicated).\n"
 
