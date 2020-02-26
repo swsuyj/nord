@@ -790,11 +790,24 @@ function getLogin () {
 	echo ""
 	vvlog "Creating auth file... "
 	install -m 600 /dev/null $AUTH_FILE
-	echo >> $AUTH_FILE
+	echo > $AUTH_FILE
 	vvlog "Done\n"
 	sed -ci "1s/^/vpn.secrets.password:$password/" $AUTH_FILE
 	
 	updateConfig "USERNAME" $username
+}
+
+
+# Usage:  ensureLogin
+# Before: Nothing.
+# After:  If no credentials are available, then the user has been
+#          prompted for login credentials, which have been saved.
+#          If credentials are available, nothing happens.
+function ensureLogin () {
+	# If credentials are not stored, request them.
+	if [[ ! -f $AUTH_FILE || -z "${config['USERNAME']}" ]]; then
+		getLogin
+	fi
 }
 
 
@@ -851,10 +864,7 @@ function connect () {
 	vvlog "Cleaning up last connection.\n"
 	connectionCleanup
 
-	# If credentials are not stored, request them.
-	if [[ ! -f $AUTH_FILE ]]; then
-		getLogin
-	fi
+	ensureLogin
 	getRecommendedServer_new
 	top_servers=$retvar
 
