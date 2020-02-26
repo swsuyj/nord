@@ -1050,6 +1050,7 @@ function main () {
 		return 0
 	fi
 
+	loadConfig
 	# Parse command line options
 	positional=()
 	while [[ $# -gt 0 ]]
@@ -1130,7 +1131,7 @@ function main () {
 					return 1
 				fi
 				vlog "Setting $1 to $2.\n"
-				option_key=$1
+				option_key=$(toLower $1)
 				val=$2
 				if   [[ $val == "on"  ]]; then val=1
 				elif [[ $val == "off" ]]; then val=0
