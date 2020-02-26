@@ -909,6 +909,21 @@ function connect () {
 	return 1
 }
 
+
+# Usage:  teardown
+# Before: Nord has been set up.
+# After:  No system files from nord are present.
+function teardown () {
+	checkSetup
+	log "Removing nord... "
+	rm $BINDIR/$PROGNAME
+	rm $SYSTEMD_DIR/$PROGNAME.service
+	rm $SYSTEMD_DIR/$PROGNAME.timer
+	rm -r $CONF_DIR $DATA_DIR $CACHE_DIR
+	log "Done\n"
+}
+
+
 # Usage:  setup
 # Before: Nothing.
 # After:  A configuration file has been created,
@@ -1087,6 +1102,10 @@ function main () {
 				;;
 			login)
 				getLogin
+				return 0
+				;;
+			teardown)
+				teardown
 				return 0
 				;;
 			s|setup)
