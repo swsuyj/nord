@@ -1142,10 +1142,6 @@ function main () {
 				# Transform command line options to keys.
 				if [[ $option_key == "country" ]]; then option_key="conn_dest_country"
 				elif [[ $option_key == "protocol" ]]; then option_key="conn_type"
-				elif [[ $option_key == "autostart" ]]
-				then
-					elog "autostarting $PROGNAME has not been implemented yet.\n"
-					return 1
 				fi
 
 				# Special cases
@@ -1161,6 +1157,24 @@ function main () {
 					vvlog "Updating connection port for $option_key.\n"
 					[[ $val == "tcp" ]] && updateConfig "CONN_PORT" 443
 					[[ $val == "udp" ]] && updateConfig "CONN_PORT" 1194
+				elif [[ $option_key == "autoconnect" ]]
+				then
+					if [[ $val == 1 ]]
+					then
+						# Autoconnect needs login credentials.
+						ensureLogin
+						vlog "Making $PROGNAME autoconnect... "
+						systemctl --user enable $PROGNAME.service --now
+						systemctl --user enable $PROGNAME.timer --now
+						vlog "Done\n"
+					else
+						vlog "Making $PROGNAME stop autoconnecting... "
+						systemctl --user stop $PROGNAME.timer
+						systemctl --user disable $PROGNAME.timer
+						systemctl --user stop $PROGNAME.service
+						systemctl --user disable $PROGNAME.service
+						vlog "Done\n"
+					fi
 				fi
 
 				vlog "Transforming $option_key to $(toUpper $option_key)\n"
