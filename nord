@@ -856,6 +856,7 @@ function disconnect () {
 # Before: Nothing.
 # After:  A connection to Nord is up.
 function connect () {
+	ensureLogin
 	checkSetup
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	$nmcli connection show --active | grep nordvpn &>/dev/null
@@ -871,7 +872,6 @@ function connect () {
 	vvlog "Cleaning up last connection.\n"
 	connectionCleanup
 
-	ensureLogin
 	getRecommendedServer_new
 	top_servers=$retvar
 
