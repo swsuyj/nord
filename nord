@@ -744,6 +744,8 @@ function killswitch () {
 		sudo $fwd -q --permanent --direct --add-rule ipv4 filter OUTPUT 0 -o lo -j ACCEPT
 		sudo $fwd -q --permanent --direct --add-rule ipv4 filter FORWARD 0 -o tun+ -j ACCEPT
 		sudo $fwd -q --permanent --direct --add-rule ipv4 filter FORWARD 0 -i tun+ -j ACCEPT
+		# Accept expected incoming packets
+		sudo $fwd -q --permanent --direct --add-rule ipv4 filter INPUT 500 -m state --state RELATED,ESTABLISHED -j ACCEPT
 		# Default block in/out
 		sudo $fwd -q --permanent --direct --add-rule ipv4 filter INPUT 999 -j DROP
 		sudo $fwd -q --permanent --direct --add-rule ipv4 filter OUTPUT 999 -j DROP
@@ -768,6 +770,8 @@ function killswitch () {
 		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter OUTPUT 0 -o lo -j ACCEPT
 		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter FORWARD 0 -o tun+ -j ACCEPT
 		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter FORWARD 0 -i tun+ -j ACCEPT
+		# Accept expected incoming packets
+		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter INPUT 500 -m state --state RELATED,ESTABLISHED -j ACCEPT
 		# Default block in/out
 		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter INPUT 999 -j DROP
 		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter OUTPUT 999 -j DROP
