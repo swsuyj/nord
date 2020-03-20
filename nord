@@ -437,9 +437,9 @@ function isConnectionActive () {
 # Usage:  ensureConnectivity
 # Before: Nothing.
 # After:  If there was an active NordVPN connection, nothing happens.
-#          Otherwise a connection is established, but only if autoconnect is on.
+#          Otherwise a connection is established.
 function ensureConnectivity () {
-	if [[ ${config['AUTOCONNECT']} -eq 1 && ! isConnectionActive ]]
+	if [[ ! isConnectionActive ]]
 	then
 		connect
 	fi
