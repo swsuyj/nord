@@ -402,11 +402,11 @@ function firewallUnpunch () {
 }
 
 
-# Usage:  isConnectionAvailable 
+# Usage:  isNetworkAvailable 
 # Before: Nothing.
 # After:  Returns 0 if a connection is available.
 #         Otherwise returns 1.
-function isConnectionAvailable () {
+function isNetworkAvailable () {
 	vvlog "A connection is "
 	if [[ -n $($nmcli connection show --active) ]]
 	then
@@ -457,7 +457,7 @@ function ensureConnectivity () {
 function getRecommendedServer_new () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 
-	if [[ ! isConnectionAvailable ]]
+	if [[ ! isNetworkAvailable ]]
 	then
 		elog "No internet connection.\n"
 		exit 1
@@ -567,7 +567,7 @@ function getRecommendedServer () {
 	fi
 
 	stats=""
-	if [[ isConnectionAvailable ]]
+	if [[ isNetworkAvailable ]]
 	then
 		vvlog "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}.\n"
 		stats=$( \
