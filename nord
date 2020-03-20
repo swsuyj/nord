@@ -897,13 +897,17 @@ function connect () {
 		code=0
 		output=$(2>&1 $nmcli connection import type openvpn file \
 			"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
-		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		[[ $? != 0 ]] && code=1
+		vvlog "${output[@]}\n"
 		output=$(2>&1 $nmcli connection modify $dest con-name 'nord' )
-		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		[[ $? != 0 ]] && code=1
+		vvlog "${output[@]}\n"
 		output=$(2>&1 $nmcli connection modify 'nord' vpn.user-name ${config["USERNAME"]} )
-		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		[[ $? != 0 ]] && code=1
+		vvlog "${output[@]}\n"
 		output=$(2>&1 $nmcli connection up 'nord' passwd-file $AUTH_FILE )
-		[[ $? != 0 ]] && code=1; vvlog "${output[@]}\n"
+		[[ $? != 0 ]] && code=1
+		vvlog "${output[@]}\n"
 
 		if [[ $code != 0 ]]
 		then
