@@ -1,5 +1,5 @@
 # TODO list
-- [ ] Add selection of country
+- [x] Add selection of country
 - [ ] Add periodical update of best servers
 - [ ] Change firewalld to iptables
 - [ ] Update Man page
