@@ -935,7 +935,8 @@ function teardown () {
 # Usage:  setup
 # Before: Nothing.
 # After:  A configuration file has been created,
-#         .ovpn files have been downloaded and extracted.
+#         .ovpn files have been downloaded and extracted,
+#         unless the --cache flag is present, then no download takes place.
 function setup () {
 	log "Setting up $PROGNAME... "
 
