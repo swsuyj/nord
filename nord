@@ -521,18 +521,26 @@ function getRecommendedServer_new () {
 		vvlog "Done\n"
 	fi
 
+	best_hostnames=""
 	if [[ -z $best_servers ]]
 	then
 		elog "Fetching a good server failed.\n"
-		exit 1
+		elog "Falling back on cached servers.\n"
+		loadTopServers
+		best_hostnames=$retvar
 	elif [[ $best_servers == '[]' ]]
 	then
 		elog "Connecting by ${config['CONN_METHOD']} is not working at the moment.\n"
 		exit 0
+	else
+		# Parse $best_servers.
+		best_hostnames=$( \
+			echo $best_servers \
+			| sed 's/"hostname":"/\n/g' \
+			| sed 's/\[.*\|.nordvpn.com".*//' \
+		)
 	fi
 
-	# Parse $best_servers.
-	best_hostnames=$(echo $best_servers | sed 's/"hostname":"/\n/g' | sed 's/\[.*\|.nordvpn.com".*//')
 	vvlog "Top servers: ${best_hostnames[@]}\n"
 	saveServers ${best_hostnames[@]}
 	retvar=${best_hostnames[@]}
