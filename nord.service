@@ -1,0 +1,19 @@
+
+[Unit]
+Description=nord - A free command line application for NordVPN written in Bash
+Documentation=man:nord(8)
+#Requires=firewalld.service NetworkManager.service
+#After=dbus-org.freedesktop.login1.service
+#BindsTo=gsd-wwan.target
+
+[Service]
+Type=oneshot
+ExecStart=$HOME/nord/nord -q connect
+ExecReload=$HOME/nord/nord -q disconnect && $HOME/nord/nord -q connect
+#ExecStop=$HOME/nord/nord -q disconnect
+TimeoutStartSec=60s
+TimeoutStopSec=10s
+#RemainAfterExit=true
+
+[Install]
+WantedBy=nord.timer
