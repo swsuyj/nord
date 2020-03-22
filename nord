@@ -1102,15 +1102,19 @@ function main () {
 					if [[ $(toLower $2) == "double" ]]
 					then
 						updateConfig 'DOUBLE_VPN' 1 'nosave'
+						shift
 					elif [[ $(toLower $2) == "dedicated" ]]
 					then
 						updateConfig 'DEDICATED_IP' 1 'nosave'
+						shift
 					elif [[ $(toLower $2) == "p2p" ]]
 					then
 						updateConfig 'P2P' 1 'nosave'
+						shift
 					elif [[ $(toLower $2) == "obfuscated" ]]
 					then
 						updateConfig 'OBFUSCATED' 1 'nosave'
+						shift
 					elif [[ ! $legalCountry ]]
 					then
 						elog "Invalig country code!\n"
