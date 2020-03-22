@@ -1014,10 +1014,13 @@ function setup () {
 #          optionally a server number in that country.
 #          Returns 1 otherwise.
 function checkLegalCountry () {
+	vlog "Assert that $1 is a legal country code... "
 	if [[ -n ${COUNTRY_ID[$1]} ]]
 	then
+		vlog "Done\n"
 		return 0
 	fi
+	vlog "Failed\n"
 	return 1
 }
 
@@ -1093,6 +1096,8 @@ function main () {
 				checkSetup
 				if [[ -n $2 ]]
 				then
+					checkLegalCountry $2
+					legalCountry=$?
 					# Ensure the country code is legal.
 					if [[ $(toLower $2) == "double" ]]
 					then
@@ -1106,8 +1111,9 @@ function main () {
 					elif [[ $(toLower $2) == "obfuscated" ]]
 					then
 						updateConfig 'OBFUSCATED' 1 'nosave'
-					elif [[ ! $(checkLegalCountry $2) ]]
+					elif [[ ! $legalCountry ]]
 					then
+						elog "Invalig country code!\n"
 						printHelp
 						exit 1
 					else
