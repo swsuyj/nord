@@ -83,7 +83,7 @@ COUNTRY_ID=(
 	['md']=142 ['mk']=128 ['mx']=140 ['my']=131 ['nl']=153 ['no']=163
 	['nz']=156 ['pl']=174 ['pt']=175 ['ro']=179 ['rs']=192 ['se']=208
 	['sg']=195 ['sk']=196 ['th']=214 ['tr']=220 ['tw']=211 ['ua']=225
-	['us']=228 ['vn']=234 ['za']=200
+	['us']=228 ['vn']=234 ['za']=200 ['uk']=227
 )
 
 
@@ -1014,14 +1014,11 @@ function setup () {
 #          optionally a server number in that country.
 #          Returns 1 otherwise.
 function checkLegalCountry () {
-	vlog
-	ls -l $OVPN_DIR/ovpn_$CONN_TYPE \
-		| sed 's/.*:\w\w \|.nord.*//g' \
-		| sed 's/[[:digit:]]\+//' \
-		| sort \
-		| uniq \
-		| grep "^$1\$"
-	return $?
+	if [[ -n ${COUNTRY_ID[$1]} ]]
+	then
+		return 0
+	fi
+	return 1
 }
 
 
