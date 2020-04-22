@@ -358,15 +358,7 @@ function firewallPunch () {
 
 	getHostIP $1
 	dest_ip=$retvar
-	sudo $fwd \
-		--quiet \
-		--direct \
-		--add-rule ipv4 \
-		filter OUTPUT 10 \
-		--protocol ${config["CONN_TYPE"]} \
-		--dport ${config["CONN_PORT"]} \
-		--destination "$dest_ip" \
-		--jump ACCEPT
+	nord-firewall $dest_ip ${config["CONN_TYPE"]} ${config["CONN_PORT"]}
 	if [[ $? ]]
 	then
 		vvlog "Done\n"
@@ -388,15 +380,7 @@ function firewallUnpunch () {
 	vvlog "Mending hole in firewall for $1... "
 	getHostIP $1
 	dest_ip=$retvar
-	sudo $fwd \
-		--quiet \
-		--direct \
-		--remove-rule ipv4 \
-		filter OUTPUT 10 \
-		--protocol ${config["CONN_TYPE"]} \
-		--dport ${config["CONN_PORT"]} \
-		--destination "$dest_ip" \
-		--jump ACCEPT
+	nord-firewall killswitch disconnect
 	if [[ $? ]]
 	then
 		vvlog "Done\n"
@@ -473,8 +457,7 @@ function getRecommendedServer_new () {
 		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
-		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
-		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		nord-firewall nordvpn.com
 		vvlog "Done\n"
 	fi
 
@@ -520,8 +503,7 @@ function getRecommendedServer_new () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending DNS lookup and stat fetch hole in firewall... "
-		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
-		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
+		nord-firewall killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -573,8 +555,7 @@ function getRecommendedServer () {
 		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
-		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
-		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		nord-firewall nordvpn.com
 		vvlog "Done\n"
 	fi
 
@@ -594,8 +575,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending DNS and stat fetch hole in firewall... "
-		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol udp --dport 53 --jump ACCEPT
-		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 -m owner --uid-owner $UID --destination 'nordvpn.com' --jump ACCEPT
+		nord-firewall killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -665,7 +645,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Punching pinging hole in firewall... "
-		sudo $fwd --quiet --direct --add-rule ipv4 filter OUTPUT 100 --protocol icmp -m owner --uid-owner $UID --jump ACCEPT
+		nord-firewall killswitch ping
 		vvlog "Done\n"
 	fi
 	# Ping top n servers to find the nearest
@@ -699,7 +679,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending pinging hole in firewall... "
-		sudo $fwd --quiet --direct --remove-rule ipv4 filter OUTPUT 100 --protocol icmp -m owner --uid-owner $UID --jump ACCEPT
+		nord-firewall killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -731,63 +711,24 @@ function getRecommendedServer () {
 # After:  Killswich has been turned on/off according to x.
 function killswitch () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	vlog "Turning the kill switch on/off requires root access.\n"
-	vlog "You may be prompted for a password.\n"
 	vlog "Turning kill switch $1...\n"
 	if [[ $1 == "on" ]]
 	then
-		# Block all connections
-		vvlog "Blocking all incoming and outgoing.\n"
-		# Block all ipv6
-		sudo $fwd -q --permanent --direct --add-rule ipv6 filter INPUT 0 -j DROP
-		sudo $fwd -q --permanent --direct --add-rule ipv6 filter OUTPUT 0 -j DROP
-		# Accept outgoing VPN
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter OUTPUT 0 -o tun+ -j ACCEPT
-		# Accept forwards
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter INPUT 0 -i lo -j ACCEPT
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter OUTPUT 0 -o lo -j ACCEPT
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter FORWARD 0 -o tun+ -j ACCEPT
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter FORWARD 0 -i tun+ -j ACCEPT
-		# Accept expected incoming packets
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter INPUT 500 -m state --state RELATED,ESTABLISHED -j ACCEPT
-		# Default block in/out
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter INPUT 999 -j DROP
-		sudo $fwd -q --permanent --direct --add-rule ipv4 filter OUTPUT 999 -j DROP
-		sudo $fwd -q --reload
+		nord-firewall killswitch on
+
 		# Also punch a hole after the reload.
 		updateConfig "KILL_SWITCH" 1
 		vvlog "After updating config, punch a hole.\n"
-		firewallPunch "${config["CONN_DEST"]}"
-
+		firewallPunch ${config["CONN_DEST"]}
 	elif [[ $1 == "off" ]]
 	then
-		## The reverse of the above.
-		# Block all connections
-		vvlog "Allowing incoming and outgoing.\n"
-		# Block all ipv6
-		sudo $fwd -q --permanent --direct --remove-rule ipv6 filter INPUT 0 -j DROP
-		sudo $fwd -q --permanent --direct --remove-rule ipv6 filter OUTPUT 0 -j DROP
-		# Accept outgoing VPN
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter OUTPUT 0 -o tun+ -j ACCEPT
-		# Accept forwards
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter INPUT 0 -i lo -j ACCEPT
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter OUTPUT 0 -o lo -j ACCEPT
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter FORWARD 0 -o tun+ -j ACCEPT
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter FORWARD 0 -i tun+ -j ACCEPT
-		# Accept expected incoming packets
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter INPUT 500 -m state --state RELATED,ESTABLISHED -j ACCEPT
-		# Default block in/out
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter INPUT 999 -j DROP
-		sudo $fwd -q --permanent --direct --remove-rule ipv4 filter OUTPUT 999 -j DROP
-		sudo $fwd -q --reload
-
+		nord-firewall killswitch off
 		updateConfig "KILL_SWITCH" 0
 	else
 		vlog "Failed\n"
 		elog "Invalid parameter to kill switch. Aborting!\n"
 		return 1
 	fi
-
 	log "Successfully turned kill switch $1.\n"
 
 	return 0
@@ -1003,6 +944,9 @@ function setup () {
 	# Extract zipfile.
 	mkdir -p $OVPN_DIR
 	$unzip -q $VPN_FILES -d $OVPN_DIR
+
+	# Set up killswitch firewall
+	nord-firewall killswitch setup
 
 	log "Done\n"
 	return 0
