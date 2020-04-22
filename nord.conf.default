@@ -15,6 +15,7 @@ CONN_TIMEOUT=5
 
 ## Kill switch
 KILL_SWITCH=0
+KILL_SWITCH_SET=0
 
 # Obfuscated server selection
 OBFUSCATED=0
