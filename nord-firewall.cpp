@@ -8,6 +8,7 @@ using namespace std;
 
 //const string fwd = "/usr/bin/firewall-cmd";
 const string ipt = "/usr/sbin/iptables";
+const string ipt6 = "/usr/sbin/ip6tables";
 const string prog_name = "nord-firewall";
 const string nord_table = "nord";
 const string INPUT_table = "INPUT";
@@ -185,6 +186,12 @@ void killswitch_setup() {
 	cmds.push_back(ipt + " -A " + killswitch_input_table +
 			" -j DROP");
 	cmds.push_back(ipt + " -A " + killswitch_output_table +
+			" -j DROP");
+
+	// Block all ipv6
+	cmds.push_back(ipt6 + " -A " + input_table +
+			" -j DROP");
+	cmds.push_back(ipt6 + " -A " + output_table +
 			" -j DROP");
 
 	// Apply all rules
