@@ -171,7 +171,7 @@ function loadConfig () {
 			then
 				varname=$(echo "$line" | cut -d '=' -f 1)
 				temp_config[$varname]=$(echo "$line" | cut -d '=' -f 2-)
-				vvlog "Loading $varname as ${temp_config[$varname]}.\n"
+#				vvlog "Loading $varname as ${temp_config[$varname]}.\n"
 			fi
 		done < $CONF_FILE
 
@@ -513,7 +513,7 @@ function getRecommendedServer_new () {
 		elog "Fetching a good server failed.\n"
 		elog "Falling back on cached servers.\n"
 		loadTopServers
-		best_hostnames=$retvar
+		best_hostnames=${retvar[@]}
 	elif [[ $best_servers == '[]' ]]
 	then
 		elog "Connecting by ${config['CONN_METHOD']} is not working at the moment.\n"
@@ -778,9 +778,9 @@ function connectionCleanup () {
 	fi
 	output=$(2>&1 $nmcli connection delete 'nord')
 	vvlog $output
+	firewallUnpunch ${config["CONN_DEST"]}
 	updateConfig "CONN_DEST" $nowhere
 	updateConfig "CONN_DEST_COUNTRY" $nowhere
-	firewallUnpunch ${config["CONN_DEST"]}
 }
 
 
@@ -830,7 +830,7 @@ function connect () {
 	connectionCleanup
 
 	getRecommendedServer_new
-	top_servers=$retvar
+	top_servers=${retvar[@]}
 
 	# Connect to NordVPN
 	vlog "Now connecting to NordVPN.\n"
