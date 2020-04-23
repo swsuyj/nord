@@ -20,7 +20,12 @@ const string vpn_interface = "tun0";
 const string allowed_states = "RELATED,ESTABLISHED";
 const int dns_port = 53;
 
+bool quiet = false;
+// Quiet system call prefix
+string output_redirect = "1>/dev/null 2>/dev/null";
+
 void log(string s) {
+	if (quiet) return;
 	cout << prog_name << " -- " << s << '\n';
 }
 
@@ -28,7 +33,7 @@ void apply_rules(vector<string> cmds) {
 	// Apply commands
 	for (string cmd : cmds) {
 		log("Applying: " + cmd);
-		system(cmd.c_str());
+		system((output_redirect + cmd).c_str());
 	}
 }
 
@@ -228,7 +233,21 @@ int main(int argc, char* argv[]) {
 	int uid = getuid();
 	int euid = geteuid();
 	string s;
-	if (argc > 1) s = argv[1];
+	if (argc > 1) {
+		s = argv[1];
+		if (s == "-q") {
+			quiet = true;
+			if (argc > 2) {
+				argc--;
+				argv = &argv[1];
+				s = argv[1];
+			}
+			else return 1;
+		}
+		else {
+			output_redirect = "";
+		}
+	}
 	else return 1;
 
 	if (s == "killswitch") {
