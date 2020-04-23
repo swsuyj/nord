@@ -189,9 +189,9 @@ void killswitch_setup() {
 			" -j DROP");
 
 	// Block all ipv6
-	cmds.push_back(ipt6 + " -A " + input_table +
+	cmds.push_back(ipt6 + " -A " + INPUT_table +
 			" -j DROP");
-	cmds.push_back(ipt6 + " -A " + output_table +
+	cmds.push_back(ipt6 + " -A " + OUTPUT_table +
 			" -j DROP");
 
 	// Apply all rules
