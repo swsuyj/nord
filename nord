@@ -7,6 +7,8 @@ ip="/usr/bin/ip"
 fwd="/usr/bin/firewall-cmd"
 unzip="/usr/bin/unzip"
 nmcli="/usr/bin/nmcli"
+ipt="/usr/sbin/iptables"
+ipt6="/usr/sbin/ip6tables"
 
 PROGNAME="nord"
 CONF_DIR="$HOME/.config/nord"
@@ -23,6 +25,8 @@ CONF_FILE="$CONF_DIR/nord.conf"
 CONN_NAME="current_connection"
 AUTH_FILE="$CONF_DIR/auth"
 VPN_FILES="$CACHE_DIR/nordvpnfiles.zip"
+IPT_FILE="$CONF_DIR/iptables-rules"
+IPT6_FILE="$CONF_DIR/ip6tables-rules"
 TOP_SERVERS_FILE="$CONF_DIR/topservers.conf"
 VPN_FILE_URL="https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip"
 VPN_STATS_URL="https://nordvpn.com/api/server/stats"
@@ -719,10 +723,15 @@ function killswitch () {
 			log "The kill switch is not set up on your computer.\n"
 			log "Setting up the kill switch requires super privileges,\n"
 			log "but only the first time, after which the kill switch\n"
-			log "can be used as a normal user."
+			log "can be used as a normal user.\n"
 			log "Please enter your password:\n"
-			sudo chown root:root $BINDIR/nord-firewall && chmod a+s nord-firewall
-			[[ $? -ne 0 ]] return
+			sudo chown root:root $BINDIR/nord-firewall && sudo chmod a+s $BINDIR/nord-firewall
+			[[ $? -ne 0 ]] && return
+			nord-firewall killswitch setup
+			sudo $ipt-save -f $IPT_FILE
+			sudo $ipt6-save -f $IPT6_FILE
+			sudo $ipt-restore $IPT_FILE
+			sudo $ipt6-restore $IPT6_FILE
 			updateConfig "KILL_SWITCH_SET" 1
 		fi
 		nord-firewall killswitch on
@@ -958,7 +967,6 @@ function setup () {
 
 	# Set up killswitch firewall
 	cp nord-firewall $BINDIR
-	nord-firewall killswitch setup
 
 	log "Done\n"
 	return 0
