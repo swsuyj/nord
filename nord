@@ -897,12 +897,17 @@ function connect () {
 # Before: Nord has been set up.
 # After:  No system files from nord are present.
 function teardown () {
-	checkSetup
+	log "Removing active connections... "
+	killswitch "off"
+	disconnect
+	nord-firewall killswitch teardown
+	log "Done\n"
 	log "Removing nord... "
-	rm $BINDIR/$PROGNAME
-	rm $SYSTEMD_DIR/$PROGNAME.service
-	rm $SYSTEMD_DIR/$PROGNAME.timer
-	rm -r $CONF_DIR $DATA_DIR $CACHE_DIR
+	rm -f $BINDIR/$PROGNAME
+	rm -f $BINDIR/nord-firewall
+	rm -f $SYSTEMD_DIR/$PROGNAME.service
+	rm -f $SYSTEMD_DIR/$PROGNAME.timer
+	rm -rf $CONF_DIR $DATA_DIR $CACHE_DIR
 	log "Done\n"
 }
 
@@ -924,14 +929,14 @@ function setup () {
 	mkdir -p $DATA_DIR $CONF_DIR $CACHE_DIR $SYSTEMD_DIR $BINDIR
 
 	# Set up default config
-	cp $PROGNAME.conf.default $CONF_FILE
+	[[ ${config['CACHE']} -ne 1 ]] && cp $PROGNAME.conf.default $CONF_FILE
 	cp $PROGNAME.service $SYSTEMD_DIR
 	sed -ci "s:\$HOME:$HOME:g" $SYSTEMD_DIR/$PROGNAME.service
 	cp $PROGNAME.timer $SYSTEMD_DIR
 	cp $PROGNAME $DATA_DIR
 	chmod 755 $DATA_DIR/$PROGNAME
 	2>/dev/null ln $DATA_DIR/$PROGNAME $BINDIR
-	
+
 	# If the cache has vpn files zipped, they might be old.
 	# Let the user decide if they need updating.
 	# If no cache, the zip file is downloaded.
@@ -1062,7 +1067,6 @@ function main () {
 				shift
 				;;
 			c|connect)
-				checkSetup
 				if [[ -n $2 ]]
 				then
 					checkLegalCountry $2
