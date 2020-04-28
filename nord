@@ -1105,6 +1105,14 @@ function main () {
 				disconnect
 				return 0
 				;;
+			reconnect)
+				shift
+				vvlog "Disconnecting in reconnect\n"
+				disconnect
+				vvlog "Connecting in reconnect with arguments: $@ \n"
+				nord connect $@
+				return 0
+				;;
 			login)
 				getLogin
 				return 0
