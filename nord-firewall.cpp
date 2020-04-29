@@ -6,7 +6,7 @@
 
 using namespace std;
 
-//const string fwd = "/usr/bin/firewall-cmd";
+const string fwd = "/usr/bin/firewall-cmd";
 const string ipt = "/usr/sbin/iptables";
 const string ipt6 = "/usr/sbin/ip6tables";
 const string prog_name = "nord-firewall";
@@ -19,6 +19,34 @@ const string nord_connection_table = "nord_conn";
 const string vpn_interface = "tun0";
 const string allowed_states = "RELATED,ESTABLISHED";
 const int dns_port = 53;
+
+// Common firewalld comands/strings
+const string udp_rule = " -p udp ";
+const string tcp_rule = " -p tcp ";
+const string destination_rule = " --destination ";
+const string port_rule = " --dport ";
+const string accept_rule = " -j ACCEPT ";
+const string drop_rule = " -j DROP ";
+
+// Table names
+const string nord4_conn = " ipv4 filter nord_conn ";
+const string nord6_conn = " ipv6 filter nord_conn ";
+const string nord4_outbound = " ipv4 filter nord_outbound ";
+const string nord4_inbound = " ipv4 filter nord_outbound ";
+const string nord6_outbound = " ipv6 filter nord_outbound ";
+const string nord6_inbound = " ipv6 filter nord_outbound ";
+const string out4 = " ipv4 filter OUTPUT ";
+const string in4 = " ipv4 filter INPUT ";
+const string out6 = " ipv6 filter OUTPUT ";
+const string in6 = " ipv6 filter INPUT ";
+
+// Priority levels for firewalld
+const string highest_priority = " 0 ";
+const string temp_priority = " 10 ";
+const string high_priority = " 100 "
+const string medium_priority = " 200 "
+const string low_priority = " 300 "
+const string lowest_priority = " 1000 "
 
 bool quiet = false;
 // Quiet system call prefix
