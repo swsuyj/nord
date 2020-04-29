@@ -60,6 +60,8 @@ VVERBOSE=1
 KILL_SWITCH=0
 CONF_LOADED=0
 
+QUIET_FLAG="-q"
+
 typeset -A nosave
 nosave=()
 retvar=""
@@ -384,7 +386,7 @@ function firewallUnpunch () {
 	vvlog "Mending hole in firewall for $1... "
 	getHostIP $1
 	dest_ip=$retvar
-	nord-firewall killswitch disconnect
+	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
 	if [[ $? ]]
 	then
 		vvlog "Done\n"
@@ -461,7 +463,7 @@ function getRecommendedServer_new () {
 		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
-		nord-firewall nordvpn.com
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} nordvpn.com
 		vvlog "Done\n"
 	fi
 
@@ -507,7 +509,7 @@ function getRecommendedServer_new () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending DNS lookup and stat fetch hole in firewall... "
-		nord-firewall killswitch disconnect
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -559,7 +561,7 @@ function getRecommendedServer () {
 		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
-		nord-firewall nordvpn.com
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} nordvpn.com
 		vvlog "Done\n"
 	fi
 
@@ -579,7 +581,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending DNS and stat fetch hole in firewall... "
-		nord-firewall killswitch disconnect
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -649,7 +651,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Punching pinging hole in firewall... "
-		nord-firewall killswitch ping
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch ping
 		vvlog "Done\n"
 	fi
 	# Ping top n servers to find the nearest
@@ -683,7 +685,7 @@ function getRecommendedServer () {
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
 		vvlog "Mending pinging hole in firewall... "
-		nord-firewall killswitch disconnect
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
 		vvlog "Done\n"
 	fi
 
@@ -725,16 +727,16 @@ function killswitch () {
 			log "but only the first time, after which the kill switch\n"
 			log "can be used as a normal user.\n"
 			log "Please enter your password:\n"
-			sudo chown root:root $BINDIR/nord-firewall && sudo chmod a+s $BINDIR/nord-firewall
+			sudo chown root:root $BINDIR/nord-firewall ${config["FIREWALL_QUIET_FLAG"]} && sudo chmod a+s $BINDIR/nord-firewall
 			[[ $? -ne 0 ]] && return
-			nord-firewall killswitch setup
+			nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch setup
 			sudo $ipt-save -f $IPT_FILE
 			sudo $ipt6-save -f $IPT6_FILE
 			sudo $ipt-restore $IPT_FILE
 			sudo $ipt6-restore $IPT6_FILE
 			updateConfig "KILL_SWITCH_SET" 1
 		fi
-		nord-firewall killswitch on
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch on
 
 		# Also punch a hole after the reload.
 		updateConfig "KILL_SWITCH" 1
@@ -742,7 +744,7 @@ function killswitch () {
 		firewallPunch ${config["CONN_DEST"]}
 	elif [[ $1 == "off" ]]
 	then
-		nord-firewall killswitch off
+		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch off
 		updateConfig "KILL_SWITCH" 0
 	else
 		vlog "Failed\n"
@@ -900,7 +902,7 @@ function teardown () {
 	log "Removing active connections... "
 	killswitch "off"
 	disconnect
-	nord-firewall killswitch teardown
+	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch teardown
 	log "Done\n"
 	log "Removing nord... "
 	rm -f $BINDIR/$PROGNAME
@@ -1061,10 +1063,12 @@ function main () {
 			-v|--verbose)
 				updateConfig "VERBOSE" 1 "nosave"
 				shift
+				updateConfig "FIREWALL_QUIET_FLAG" $QUIET_FLAG "nosave"
 				;;
 			-vv|--very-verbose)
 				updateConfig "VVERBOSE" 1 "nosave"
 				shift
+				updateConfig "FIREWALL_QUIET_FLAG" $QUIET_FLAG "nosave"
 				;;
 			c|connect)
 				if [[ -n $2 ]]
