@@ -1021,10 +1021,11 @@ function printHelp () {
 	log "\n"
 	log "      setup            Downloads the required files\n"
 	log "                         and takes care of some initial plumbing.\n"
+	log "     update            (Re-)download the latest .ovpn files.\n"
 	log "    connect [x|f [x]]  Connect to the best NordVPN server, or to x\n"
 	log "                         where x is a country code. Or to x with filter f\n"
 	log "                         where f is {obfuscated, dedicated, double, p2p}.\n"
-	log "                         If there is x is omitted, then a good server of type f\n"
+	log "                         If x is omitted, then a good server of type f\n"
 	log "                         is chosen. There is no guarantee than a f x\n"
 	log "                         configuration will work. Supplying f or x overrides\n"
 	log "                         your configurations set with nord set.\n"
@@ -1032,7 +1033,7 @@ function printHelp () {
 	log "     config            Display all of your configurations.\n"
 	log "        set x y        Set config item x to y.\n"
 	log "                       Valid config items and their values:\n\n"
-	log "                         killswitch  [on|off]     Requires root access.\n"
+	log "                         killswitch  [on|off]  Requires root access to set up.\n"
 	log "                         protocol    [tcp|udp]\n"
 	log "                         obfuscated  [on|off]\n"
 	log "                         autoconnect [on|off]\n"
@@ -1043,7 +1044,7 @@ function printHelp () {
 
 # Usage:  invalidParam
 # Before: Nothing.
-# After:  An error message is has been printed notifying the
+# After:  An error message has been printed notifying the
 #          user that the supplied argument is invalid.
 #          Program exits with code 1.
 function invalidParam () {
@@ -1054,7 +1055,7 @@ function invalidParam () {
 
 
 function main () {
-	# Empty call, and startup loading.
+	# Empty call, do nothing
 	if [[ $# -eq 0 ]]
 	then
 		return 0
