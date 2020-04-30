@@ -15,13 +15,6 @@ const string vpn_interface = "tun0";
 const string allowed_states = "RELATED,ESTABLISHED";
 const int dns_port = 53;
 
-// Chains
-const string nord_table = "nord";
-const string INPUT_table = "INPUT";
-const string OUTPUT_table = "OUTPUT";
-const string killswitch_input_table = "nord_input";
-const string killswitch_output_table = "nord_output";
-
 // Nord chains
 const string nord4_conn = " ipv4 filter nord_conn ";
 const string nord6_conn = " ipv6 filter nord_conn ";
@@ -210,9 +203,9 @@ void open_by_ip(string ip, string protocol, int port) {
 void killswitch_off() {
 	log("Turning kill switch off");
 	vector<string> cmds;
-	cmds.push_back(fwd + remove_rule + INPUT_table  + killswitch_priority +
+	cmds.push_back(fwd + remove_rule + in4 + killswitch_priority +
 			killswitch_in_rule);
-	cmds.push_back(fwd + remove_rule + OUTPUT_table + killswitch_priority +
+	cmds.push_back(fwd + remove_rule + out4 + killswitch_priority +
 			killswitch_out_rule);
 
 	// Apply commands
@@ -230,9 +223,9 @@ void killswitch_on() {
 	killswitch_off();
 	log("Turning kill switch on");
 	vector<string> cmds;
-	cmds.push_back(fwd + add_rule + INPUT_table + killswitch_priority +
+	cmds.push_back(fwd + add_rule + in4 + killswitch_priority +
 			killswitch_in_rule);
-	cmds.push_back(fwd + add_rule + OUTPUT_table + killswitch_priority +
+	cmds.push_back(fwd + add_rule + out4 + killswitch_priority +
 			killswitch_out_rule);
 
 	// Apply commands
@@ -247,7 +240,7 @@ void killswitch_setup() {
 	vector<string> cmds;
 
 	log("Settinp up chains");
-	// Create the necessary tables
+	// Create the necessary chains
 	cmds.push_back(fwd + permanent_rule + " --add-chain " + nord4_inbound);
 	cmds.push_back(fwd + permanent_rule + " --add-chain " + nord4_outbound);
 	cmds.push_back(fwd + permanent_rule + " --add-chain " + nord6_inbound);
@@ -256,7 +249,7 @@ void killswitch_setup() {
 	cmds.push_back(fwd + permanent_rule + " --add-chain " + nord6_conn);
 
 	log("Clearing chains, in case they existed");
-	// Clear the new tables, in case they existed
+	// Clear the new chains, in case they existed
 	clear_chain(nord4_inbound, true);
 	clear_chain(nord4_outbound, true);
 	clear_chain(nord6_inbound, true);
@@ -264,8 +257,8 @@ void killswitch_setup() {
 	clear_chain(nord4_conn, true);
 	clear_chain(nord6_conn, true);
 
-	log("Linking the tables");
-	// Link the tables
+	log("Linking the chains");
+	// Link the chains
 	cmds.push_back(fwd + permanent_rule + add_rule + nord4_outbound +
 			killswitch_priority + " -j nord_conn ");
 	cmds.push_back(fwd + permanent_rule + add_rule + nord6_outbound +
@@ -324,10 +317,10 @@ void killswitch_teardown() {
 	log("Tearing kill switch down");
 	vector<string> cmds;
 
-	// Remove linkis from INPUPT and OUTPUT to our tables.
+	// Remove linkis from INPUPT and OUTPUT to our chains.
 	killswitch_off();
 
-	// Flush all the tables we created
+	// Flush all the chains we created
 	clear_chain(nord4_inbound, true);
 	clear_chain(nord4_outbound, true);
 	clear_chain(nord6_inbound, true);
@@ -335,7 +328,7 @@ void killswitch_teardown() {
 	clear_chain(nord4_conn, true);
 	clear_chain(nord6_conn, true);
 
-	// Then delete all the tables
+	// Then delete all the chains
 	cmds.push_back(fwd + permanent_rule + " --remove-chain " + nord4_inbound);
 	cmds.push_back(fwd + permanent_rule + " --remove-chain " + nord4_outbound);
 	cmds.push_back(fwd + permanent_rule + " --remove-chain " + nord6_inbound);
