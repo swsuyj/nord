@@ -727,7 +727,7 @@ function killswitch () {
 			log "but only the first time, after which the kill switch\n"
 			log "can be used as a normal user.\n"
 			log "Please enter your password:\n"
-			sudo chown root:root $BINDIR/nord-firewall ${config["FIREWALL_QUIET_FLAG"]} && sudo chmod a+s $BINDIR/nord-firewall
+			sudo chown root:root $BINDIR/nord-firewall && sudo chmod a+s $BINDIR/nord-firewall
 			[[ $? -ne 0 ]] && return
 			nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch setup
 			sudo $ipt-save -f $IPT_FILE
