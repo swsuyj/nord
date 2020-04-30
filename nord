@@ -63,20 +63,15 @@ CONF_LOADED=0
 QUIET_FLAG="-q"
 
 typeset -A nosave
+typeset -A config
 nosave=()
+config=()
 retvar=""
 top_servers=()
 
-
-typeset -A config
-config=(
-	["CONN_TYPE"]=$CONN_TYPE
-	["CONN_PORT"]=$CONN_PORT
-	["PING_NUM"]=$PING_NUM
-	["PING_INTERVAL"]=$PING_INTERVAL
-	["NUM_SERVERS"]=$NUM_SERVERS
-	["CONN_TIMEOUT"]=$CONN_TIMEOUT
-	["FIREWALL_QUIET_FLAG"]='-q'
+typeset -A default_config
+default_config=(
+	["FIREWALL_QUIET_FLAG"]=$QUIET_FLAG
 )
 
 typeset -A COUNTRY_ID
@@ -189,8 +184,14 @@ function loadConfig () {
 		return 1
 	fi
 
-	# Copy temp to permanent config
 	config=()
+	# Copy default config
+	for config_key in "${!default_config[@]}"
+	do
+		config["$config_key"]="${default_config[$config_key]}"
+	done
+
+	# Copy temp to permanent config
 	for config_key in "${!temp_config[@]}"
 	do
 		config["$config_key"]="${temp_config[$config_key]}"
@@ -344,10 +345,13 @@ function loadTopServers () {
 function getHostIP () {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	dest_ip=$( \
+		2>/dev/null \
 		grep "^remote " \
 		$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$1.nordvpn.com.${config["CONN_TYPE"]}.ovpn \
 		| $sed 's/remote \(\(\w\+\.\?\)\+\) \w\+$/\1/' \
 	)
+	elog "Your vpn server files seem to be out of date.\n"
+	elog "Try updating with \`nord update\`\n"
 	retvar="$dest_ip"
 }
 
@@ -365,7 +369,7 @@ function firewallPunch () {
 
 	getHostIP $1
 	dest_ip=$retvar
-	nord-firewall $dest_ip ${config["CONN_TYPE"]} ${config["CONN_PORT"]}
+	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} $dest_ip ${config["CONN_TYPE"]} ${config["CONN_PORT"]}
 	if [[ $? ]]
 	then
 		vvlog "Done\n"
@@ -915,6 +919,17 @@ function teardown () {
 }
 
 
+# Usage:  download
+# Before: Nothing.
+# After;  Latest .ovpn files have been fetched and stored.
+function download {
+	$wget -O $VPN_FILES $VPN_FILE_URL
+
+	# Extract zipfile.
+	mkdir -p $OVPN_DIR
+	$unzip -q $VPN_FILES -d $OVPN_DIR
+}
+
 # Usage:  setup
 # Before: Nothing.
 # After:  A configuration file has been created,
@@ -958,7 +973,7 @@ function setup () {
 			then
 				answered=1
 				rm -r $VPN_FILES
-				$wget -O $VPN_FILES $VPN_FILE_URL
+				download
 			else
 				log "Incorrect answer. Do you want to use the cached files? [y/n] "
 			fi
@@ -968,10 +983,6 @@ function setup () {
 	then
 		$wget -O $VPN_FILES $VPN_FILE_URL
 	fi
-
-	# Extract zipfile.
-	mkdir -p $OVPN_DIR
-	$unzip -q $VPN_FILES -d $OVPN_DIR
 
 	# Set up killswitch firewall
 	cp nord-firewall $BINDIR
@@ -1064,12 +1075,10 @@ function main () {
 			-v|--verbose)
 				updateConfig "VERBOSE" 1 "nosave"
 				shift
-				updateConfig "FIREWALL_QUIET_FLAG" $QUIET_FLAG "nosave"
 				;;
 			-vv|--very-verbose)
 				updateConfig "VVERBOSE" 1 "nosave"
 				shift
-				updateConfig "FIREWALL_QUIET_FLAG" $QUIET_FLAG "nosave"
 				;;
 			c|connect)
 				if [[ -n $2 ]]
@@ -1194,6 +1203,10 @@ function main () {
 
 				vlog "Transforming $option_key to $(toUpper $option_key)\n"
 				updateConfig $(toUpper $option_key) $val
+				return 0
+				;;
+			update)
+				download
 				return 0
 				;;
 			command)
