@@ -8,7 +8,7 @@ nord \- a NordVPN command line application
 nord [options] [command [arguments]]
 
 .SH DESCRIPTION
-nord is a free command line application for NordVPN written in Bash.
+nord is a free command line application for NordVPN written in Bash and a tiny bit in C++.
 
 .SH COMMANDS
 .IP login
@@ -26,14 +26,34 @@ firewall (if on) , and then the chosen server is connected to.
 Disconnect from the server currently connected to. Mend the corresponding
 firewall hole, if kill switch is on.
 
+.IP reconnect
+Disconnect, then immediately connect again. Takes same arguments as
+.B connect
+does.
+
 .IP "set conf {on|off|other}"
 Switch config item
 .B conf
-on or off.
+on
+or
+.B off.
 The following config items are available:
 .RS 12
 .B killswitch obfuscated autoconnect country
 .RE
+As well as
+.B protocol
+which accepts
+.B udp
+or
+.B tcp.
+
+.IP login
+Log in in order to connect to a vpn.
+
+.IP update
+Downloads the latest .ovpn files. This will overwrite the old. This is
+needed when NordVPN has released new servers.
 
 
 .SH OPTIONS
