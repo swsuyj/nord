@@ -350,8 +350,10 @@ function getHostIP () {
 		$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$1.nordvpn.com.${config["CONN_TYPE"]}.ovpn \
 		| $sed 's/remote \(\(\w\+\.\?\)\+\) \w\+$/\1/' \
 	)
-	elog "Your vpn server files seem to be out of date.\n"
-	elog "Try updating with \`nord update\`\n"
+	if [[ ! $? ]]; then
+		elog "Your vpn server files seem to be out of date.\n"
+		elog "Try updating with \`nord update\`\n"
+	fi
 	retvar="$dest_ip"
 }
 
@@ -981,7 +983,7 @@ function setup () {
 		log "\n"
 	elif [[ ${config['CACHE']} != 1 ]]
 	then
-		$wget -O $VPN_FILES $VPN_FILE_URL
+		download
 	fi
 
 	# Set up killswitch firewall
@@ -1021,6 +1023,7 @@ function printHelp () {
 	log "\n"
 	log "      setup            Downloads the required files\n"
 	log "                         and takes care of some initial plumbing.\n"
+	log "      login            Saves your credentials for connecting later.\n"
 	log "     update            (Re-)download the latest .ovpn files.\n"
 	log "    connect [x|f [x]]  Connect to the best NordVPN server, or to x\n"
 	log "                         where x is a country code. Or to x with filter f\n"
