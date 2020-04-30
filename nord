@@ -152,6 +152,7 @@ function getConfig () {
 	done < $CONF_FILE
 }
 
+
 # Usage:  loadConfig
 # Before: Nothing.
 # After:  User configurations have been loaded from user configuration file.
@@ -219,7 +220,7 @@ function updateConfig () {
 		return 1
 	fi
 
-	vvlog "Updating $1 to $2 "
+	vlog "Updating $1 to $2... "
 
 	if [[ $3 == "nosave" ]]
 	then
@@ -231,7 +232,7 @@ function updateConfig () {
 		vvlog "\n"
 	fi
 
-	vlog "Updating config file... "
+	vvlog "Updating config file... "
 
 	# Branching depending whether the config is present or not.
 	if [[ -z $(grep $1 $CONF_FILE) ]]
@@ -357,6 +358,7 @@ function getHostIP () {
 	retvar="$dest_ip"
 }
 
+
 # Usage:  firewallPunch x
 # Before: firewalld is in use and running. x is of the form [a-z]{2}\d+ 
 # After:  firewalld contains an exception to allow traffic to x over tun0
@@ -379,6 +381,7 @@ function firewallPunch () {
 		vvlog "Failed\n"
 	fi
 }
+
 
 # Usage:  firewallUnpunch x
 # Before: firewalld is in use and running. x is of the form [a-z]{2}\d+
@@ -907,8 +910,10 @@ function connect () {
 # After:  No system files from nord are present.
 function teardown () {
 	log "Removing active connections... "
+	(1>/dev/null disconnect)
+	log "Done\n"
 	killswitch "off"
-	disconnect
+	log "Tearing kill switch down... "
 	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch teardown
 	log "Done\n"
 	log "Removing nord... "
@@ -931,6 +936,7 @@ function download {
 	mkdir -p $OVPN_DIR
 	$unzip -q $VPN_FILES -d $OVPN_DIR
 }
+
 
 # Usage:  setup
 # Before: Nothing.
@@ -996,11 +1002,10 @@ function setup () {
 
 # Usage:  checkLegalCountry x
 # Before: Nothing.
-# After:  Returns 0 if x is a country code, and
-#          optionally a server number in that country.
-#          Returns 1 otherwise.
+# After:  Returns 0 if x is a country code.
+#         Returns 1 otherwise.
 function checkLegalCountry () {
-	vlog "Assert that $1 is a legal country code... "
+	vlog "Asserting that $1 is a legal country code... "
 	if [[ -n ${COUNTRY_ID[$1]} ]]
 	then
 		vlog "Done\n"
@@ -1008,6 +1013,62 @@ function checkLegalCountry () {
 	fi
 	vlog "Failed\n"
 	return 1
+}
+
+
+# Usage:  status x
+# Before: x is a config item.
+# After:  echoes 'on' for config value 1,
+#         'off' for config value 0,
+#         the value else.
+function status () {
+	[[ -z $1 ]] && return 1
+	  if [[ $1 == 1 ]]; then echo on
+	elif [[ $1 == 0 ]];  then echo off
+	else echo $1
+	fi
+}
+
+
+# Usage:  printCountries
+# Before: Nothing.
+# After:  All recognized countries have been printed to stdout.
+function printCountries () {
+	local counter
+	local loop
+	local countries
+	loop='..........'
+	counter=$loop
+	countries=$(echo ${!COUNTRY_ID[@]} | sed 's/ /\n/g' | sort)
+	log "Valid country codes:\n"
+	for id in ${countries[@]}
+	do
+		if [[ $counter == $loop ]]
+		then
+			counter=.
+			log "\n    "
+		fi
+		log "$id "
+		counter+=.
+	done
+	log "\n\n"
+}
+
+
+# Usage:  printStatus
+# Before: Nothing.
+# After:  Status of various parts of the application have been
+#         printed to stdout.
+function printStatus () {
+	vlog "Printing status message... \n"
+	log " Status of nord parts:                                 \n"
+	log "                                                       \n"
+	log "   obfuscated: $(status ${config['OBFUSCATED']})       \n"
+	log "   connection: $(status ${config['CONN_DEST']})        \n"
+	log "  kill switch: $(status ${config['KILL_SWITCH']})      \n"
+	log " auto-connect: $(status ${config['AUTOCONNECT']})      \n"
+	log "     protocol: $(status ${config['CONN_TYPE']})        \n"
+	log "      country: $(status ${config['CONN_DEST_COUNTRY']})\n"
 }
 
 
@@ -1106,7 +1167,7 @@ function main () {
 					then
 						updateConfig 'OBFUSCATED' 1 'nosave'
 						shift
-					elif [[ ! $legalCountry ]]
+					elif [[ $legalCountry -ne 0 ]]
 					then
 						elog "Invalig country code!\n"
 						printHelp
@@ -1147,6 +1208,10 @@ function main () {
 				setup
 				return 0
 				;;
+			status)
+				printStatus
+				return 0
+				;;
 			config)
 				getConfig
 				return 0
@@ -1185,6 +1250,18 @@ function main () {
 					vvlog "Updating connection port for $option_key.\n"
 					[[ $val == "tcp" ]] && updateConfig "CONN_PORT" 443
 					[[ $val == "udp" ]] && updateConfig "CONN_PORT" 1194
+				elif [[ $option_key == 'conn_dest_country' ]]
+				then
+					# Check that the supplied country is valid
+					checkLegalCountry $val
+					if [[ $? -ne 0 ]]
+					then
+						elog "Invalid country code.\n"
+						printCountries
+						updateConfig 'CONN_DEST_COUNTRY' $nowhere
+						return 1
+					fi
+					updateConfig 'CONN_DEST_COUNTRY' $val
 				elif [[ $option_key == "autoconnect" ]]
 				then
 					if [[ $val == 1 ]]
@@ -1194,6 +1271,7 @@ function main () {
 						vlog "Making $PROGNAME autoconnect... "
 						systemctl --user enable $PROGNAME.service --now
 						systemctl --user enable $PROGNAME.timer --now
+						updateConfig 'AUTOCONNECT' 1
 						vlog "Done\n"
 					else
 						vlog "Making $PROGNAME stop autoconnecting... "
@@ -1201,6 +1279,7 @@ function main () {
 						systemctl --user disable $PROGNAME.timer
 						systemctl --user stop $PROGNAME.service
 						systemctl --user disable $PROGNAME.service
+						updateConfig 'AUTOCONNECT' 0
 						vlog "Done\n"
 					fi
 				fi
