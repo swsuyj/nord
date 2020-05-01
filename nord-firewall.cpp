@@ -244,6 +244,8 @@ void killswitch_off() {
 			out4 +
 			killswitch_priority +
 			killswitch_out_rule);
+	cmds.push_back(fwdq +
+			" --reload ");
 
 	// Apply commands
 	apply_rules(cmds);
@@ -261,15 +263,19 @@ void killswitch_on() {
 	log("Turning kill switch on");
 	vector<string> cmds;
 	cmds.push_back(fwdqd +
+			permanent_rule +
 			add_rule +
 			in4 +
 			killswitch_priority +
 			killswitch_in_rule);
 	cmds.push_back(fwdqd +
+			permanent_rule +
 			add_rule +
 			out4 +
 			killswitch_priority +
 			killswitch_out_rule);
+	cmds.push_back(fwdq +
+			" --reload ");
 
 	// Apply commands
 	apply_rules(cmds);
