@@ -233,11 +233,13 @@ void killswitch_off() {
 	log("Turning kill switch off");
 	vector<string> cmds;
 	cmds.push_back(fwdqd +
+			permanent_rule +
 			remove_rule +
 			in4 +
 			killswitch_priority +
 			killswitch_in_rule);
 	cmds.push_back(fwdqd +
+			permanent_rule +
 			remove_rule +
 			out4 +
 			killswitch_priority +
