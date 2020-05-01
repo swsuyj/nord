@@ -94,17 +94,27 @@ void clear_chain(string chain, bool permanent) {
 	vector<string> cmds;
 	// Bash code to delete firewalld rules of chain
 	// Note that we can't use the '-q' flag
-	cmds.push_back("rules=$(" + fwdd + " --get-all-rules " +
-		" | grep -i '" + chain + "'); " +
-		"cmd=''; " +
-		"for s in ${rules[@]}; do " +
-			"if [[ $s == ipv4 || $s == ipv6 ]]; then " +
-				"[[ -n $cmd ]] && " + fw + remove_rule + " $cmd; " +
-				"cmd=$s; " +
-			"else cmd+=\" $s\"; " +
-			"fi; " +
-		"done; " +
-		"[[ -n $cmd ]] && " + fw + remove_rule + " $cmd;");
+	cmds.push_back("rules=$(" +
+			fwdd +
+			" --get-all-rules " +
+			" | grep -i '" +
+			chain +
+			"'); " +
+			"cmd=''; " +
+			"for s in ${rules[@]}; do " +
+				"if [[ $s == ipv4 || $s == ipv6 ]]; then " +
+					"[[ -n $cmd ]] && " +
+				fw +
+				remove_rule +
+				" $cmd; " +
+					"cmd=$s; " +
+				"else cmd+=\" $s\"; " +
+				"fi; " +
+			"done; " +
+			"[[ -n $cmd ]] && " +
+			fw +
+			remove_rule +
+			" $cmd;");
 
 	apply_rules(cmds);
 }
@@ -128,7 +138,10 @@ void killswitch_ping() {
 	log("Opening firewall for pinging");
 	vector<string> cmds;
 
-	cmds.push_back(fwdqd + add_rule + nord4_conn + medium_priority +
+	cmds.push_back(fwdqd +
+			add_rule +
+			nord4_conn +
+			medium_priority +
 			icmp_rule +
 			accept_rule);
 
@@ -148,11 +161,16 @@ void open_by_domain(string domain) {
 		udp_rule + port_rule + to_string(dns_port) + accept_rule;
 
 	// Allow dns traffic
-	cmds.push_back(fwdqd + add_rule +
+	cmds.push_back(fwdqd +
+			add_rule +
 			dns_rule);
 	// Allow connection to domain
-	cmds.push_back(fwdqd + add_rule + nord4_conn + medium_priority +
-			destination_rule + domain +
+	cmds.push_back(fwdqd +
+			add_rule +
+			nord4_conn +
+			medium_priority +
+			destination_rule +
+			domain +
 			accept_rule);
 	// WARNING! DNS traffic to any domain is allowed,
 	// until nord_conn is cleared!
@@ -170,8 +188,12 @@ void close_by_ip(string ip) {
 	log("Closing firewall for ip address " + ip);
 
 	vector<string> cmds;
-	cmds.push_back(fwdqd + remove_rule + nord4_outbound + connection_priority +
-			destination_rule + ip);
+	cmds.push_back(fwdqd +
+			remove_rule +
+			nord4_outbound +
+			connection_priority +
+			destination_rule +
+			ip);
 
 	apply_rules(cmds);
 }
@@ -188,10 +210,16 @@ void open_by_ip(string ip, string protocol, int port) {
 	clear_chain(nord4_conn);
 
 	vector<string> cmds;
-	cmds.push_back(fwdqd + add_rule + nord4_conn + connection_priority +
-			protocol_rule + protocol +
-			port_rule + to_string(port) +
-			destination_rule + ip +
+	cmds.push_back(fwdqd +
+			add_rule +
+			nord4_conn +
+			connection_priority +
+			protocol_rule +
+			protocol +
+			port_rule +
+			to_string(port) +
+			destination_rule +
+			ip +
 			accept_rule);
 
 	apply_rules(cmds);
@@ -204,9 +232,15 @@ void open_by_ip(string ip, string protocol, int port) {
 void killswitch_off() {
 	log("Turning kill switch off");
 	vector<string> cmds;
-	cmds.push_back(fwdqd + remove_rule + in4 + killswitch_priority +
+	cmds.push_back(fwdqd +
+			remove_rule +
+			in4 +
+			killswitch_priority +
 			killswitch_in_rule);
-	cmds.push_back(fwdqd + remove_rule + out4 + killswitch_priority +
+	cmds.push_back(fwdqd +
+			remove_rule +
+			out4 +
+			killswitch_priority +
 			killswitch_out_rule);
 
 	// Apply commands
@@ -224,9 +258,15 @@ void killswitch_on() {
 	killswitch_off();
 	log("Turning kill switch on");
 	vector<string> cmds;
-	cmds.push_back(fwdqd + add_rule + in4 + killswitch_priority +
+	cmds.push_back(fwdqd +
+			add_rule +
+			in4 +
+			killswitch_priority +
 			killswitch_in_rule);
-	cmds.push_back(fwdqd + add_rule + out4 + killswitch_priority +
+	cmds.push_back(fwdqd +
+			add_rule +
+			out4 +
+			killswitch_priority +
 			killswitch_out_rule);
 
 	// Apply commands
@@ -242,12 +282,30 @@ void killswitch_setup() {
 
 	log("Settinp up chains");
 	// Create the necessary chains
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord4_inbound);
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord4_outbound);
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord6_inbound);
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord6_outbound);
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord4_conn);
-	cmds.push_back(fwdqd + permanent_rule + " --add-chain " + nord6_conn);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord4_inbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord4_outbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord6_inbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord6_outbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord4_conn);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --add-chain " +
+			nord6_conn);
 
 	log("Clearing chains, in case they existed");
 	// Clear the new chains, in case they existed
@@ -260,53 +318,98 @@ void killswitch_setup() {
 
 	log("Linking the chains");
 	// Link the chains
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_outbound +
-			killswitch_priority + " -j nord_conn ");
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord6_outbound +
-			killswitch_priority + " -j nord_conn ");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_outbound +
+			killswitch_priority +
+			" -j nord_conn ");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord6_outbound +
+			killswitch_priority +
+			" -j nord_conn ");
 
 	log("Setting VPN rules"); // allow/disallow certain traffic
 	// Allow forwards
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_inbound +
-			killswitch_priority + " -i lo -j ACCEPT");
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_outbound +
-			killswitch_priority + " -o lo -j ACCEPT");
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord6_inbound +
-			killswitch_priority + " -i lo -j ACCEPT");
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord6_outbound +
-			killswitch_priority + " -o lo -j ACCEPT");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_inbound +
+			killswitch_priority +
+			" -i lo -j ACCEPT");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_outbound +
+			killswitch_priority +
+			" -o lo -j ACCEPT");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord6_inbound +
+			killswitch_priority +
+			" -i lo -j ACCEPT");
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord6_outbound +
+			killswitch_priority +
+			" -o lo -j ACCEPT");
 
 	// Allow all vpn access
 	// Only on ipv4
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_outbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_outbound +
 			killswitch_priority +
-			" -o " + vpn_interface +
+			" -o " +
+			vpn_interface +
 			accept_rule);
 
 	// Allow established connections
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_inbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_inbound +
 			killswitch_priority +
-			" -m state --state " + allowed_states +
+			" -m state --state " +
+			allowed_states +
 			accept_rule);
 
 	// Block input and output by default
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_inbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_inbound +
 			lowest_priority +
 			drop_rule);
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord4_outbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord4_outbound +
 			lowest_priority +
 			drop_rule);
 
 	// Block all ipv6
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord6_inbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord6_inbound +
 			lowest_priority +
 			drop_rule);
-	cmds.push_back(fwdqd + permanent_rule + add_rule + nord6_outbound +
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			nord6_outbound +
 			lowest_priority +
 			drop_rule);
 
 	// Reload firewall to enable permanent ruleset
-	cmds.push_back(fwdq + " --reload");
+	cmds.push_back(fwdq +
+			" --reload");
 
 	log("Applying kill switch setup rules");
 	// Apply all rules
@@ -333,15 +436,34 @@ void killswitch_teardown() {
 	clear_chain(nord6_conn, true);
 
 	// Then delete all the chains
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord4_inbound);
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord4_outbound);
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord6_inbound);
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord6_outbound);
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord4_conn);
-	cmds.push_back(fwdqd + permanent_rule + " --remove-chain " + nord6_conn);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord4_inbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord4_outbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord6_inbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord6_outbound);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord4_conn);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			" --remove-chain " +
+			nord6_conn);
 
 	// Finally reaload firewall to clear non-permanent rules
-	cmds.push_back(fwdq + " --reload ");
+	cmds.push_back(fwdq +
+			" --reload ");
 
 	// Apply all rules
 	apply_rules(cmds);
