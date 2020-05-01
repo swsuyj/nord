@@ -812,7 +812,6 @@ function connectionCleanup () {
 	vvlog $output
 	firewallUnpunch ${config["CONN_DEST"]}
 	updateConfig "CONN_DEST" $nowhere
-	updateConfig "CONN_DEST_COUNTRY" $nowhere
 }
 
 
@@ -1173,7 +1172,7 @@ function main () {
 						printHelp
 						exit 1
 					else
-						updateConfig "CONN_DEST_COUNTRY" $2
+						updateConfig "CONN_DEST_COUNTRY" $2 'nosave'
 					fi
 					updateConfig 'CONN_METHOD' $2 'nosave'
 				fi
