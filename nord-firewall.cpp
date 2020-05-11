@@ -9,6 +9,7 @@ using namespace std;
 // Programs & other
 //const string ipt = "/usr/sbin/iptables";
 //const string ipt6 = "/usr/sbin/ip6tables";
+const string echo = "/usr/bin/echo ";
 const string fwd = "/usr/bin/firewall-cmd";
 const string fwdd = "/usr/bin/firewall-cmd --direct";
 const string fwdq = "/usr/bin/firewall-cmd -q";
@@ -48,7 +49,7 @@ const string killswitch_out_rule = " -j nord_outbound ";
 
 // Priority levels for firewalld
 const string connection_priority = " 199 ";
-const string killswitch_priority = " 299 ";
+const string killswitch_priority = " 999 ";
 const string highest_priority = " 0 ";
 const string temp_priority = " 10 ";
 const string high_priority = " 100 ";
@@ -232,6 +233,7 @@ void open_by_ip(string ip, string protocol, int port) {
 void killswitch_off() {
 	log("Turning kill switch off");
 	vector<string> cmds;
+	// ipv4
 	cmds.push_back(fwdqd +
 			permanent_rule +
 			remove_rule +
@@ -242,6 +244,19 @@ void killswitch_off() {
 			permanent_rule +
 			remove_rule +
 			out4 +
+			killswitch_priority +
+			killswitch_out_rule);
+	// ipv6
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			remove_rule +
+			in6 +
+			killswitch_priority +
+			killswitch_in_rule);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			remove_rule +
+			out6 +
 			killswitch_priority +
 			killswitch_out_rule);
 	cmds.push_back(fwdq +
@@ -262,6 +277,7 @@ void killswitch_on() {
 	killswitch_off();
 	log("Turning kill switch on");
 	vector<string> cmds;
+	// ipv4
 	cmds.push_back(fwdqd +
 			permanent_rule +
 			add_rule +
@@ -272,6 +288,19 @@ void killswitch_on() {
 			permanent_rule +
 			add_rule +
 			out4 +
+			killswitch_priority +
+			killswitch_out_rule);
+	// ipv6
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			in6 +
+			killswitch_priority +
+			killswitch_in_rule);
+	cmds.push_back(fwdqd +
+			permanent_rule +
+			add_rule +
+			out6 +
 			killswitch_priority +
 			killswitch_out_rule);
 	cmds.push_back(fwdq +
@@ -288,7 +317,7 @@ void killswitch_setup() {
 	log("Setting up kill switch");
 	vector<string> cmds;
 
-	log("Settinp up chains");
+	cmds.push_back(echo + "Settinp up chains");
 	// Create the necessary chains
 	cmds.push_back(fwdqd +
 			permanent_rule +
@@ -315,7 +344,7 @@ void killswitch_setup() {
 			" --add-chain " +
 			nord6_conn);
 
-	log("Clearing chains, in case they existed");
+	cmds.push_back(echo + "Clearing chains, in case they existed");
 	// Clear the new chains, in case they existed
 	clear_chain(nord4_inbound, true);
 	clear_chain(nord4_outbound, true);
@@ -324,7 +353,7 @@ void killswitch_setup() {
 	clear_chain(nord4_conn, true);
 	clear_chain(nord6_conn, true);
 
-	log("Linking the chains");
+	cmds.push_back(echo + "Linking the chains");
 	// Link the chains
 	cmds.push_back(fwdqd +
 			permanent_rule +
@@ -339,7 +368,7 @@ void killswitch_setup() {
 			killswitch_priority +
 			" -j nord_conn ");
 
-	log("Setting VPN rules"); // allow/disallow certain traffic
+	cmds.push_back(echo + "Setting VPN rules"); // allow/disallow certain traffic
 	// Allow forwards
 	cmds.push_back(fwdqd +
 			permanent_rule +
