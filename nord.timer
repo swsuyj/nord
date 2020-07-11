@@ -4,4 +4,4 @@ AccuracySec=10s
 Unit=nord.service
 
 [Install]
-WantedBy=gnome-session-initialized.target
+WantedBy=basic.target
