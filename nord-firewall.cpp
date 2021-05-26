@@ -57,6 +57,11 @@ const string medium_priority = " 200 ";
 const string low_priority = " 300 ";
 const string lowest_priority = " 1000 ";
 
+// Private subnets
+const string private_subnet_class_a = " 10.0.0.0/8 ";
+const string private_subnet_class_b = " 172.16.0.0/12 ";
+const string private_subnet_class_c = " 192.168.0.0/16 ";
+
 bool quiet = false;
 string quiet_flag = " -q ";
 // Quiet system call prefix
@@ -405,6 +410,19 @@ void killswitch_setup() {
 			" -o " +
 			vpn_interface +
 			accept_rule);
+
+	// Allow outbound for private subnets
+	vector<string> subnets{private_subnet_class_a, private_subnet_class_b, private_subnet_class_c};
+	for(string subnet : subnets) {
+		cmds.push_back(fwdqd +
+				permanent_rule +
+				add_rule +
+				nord4_outbound +
+				killswitch_priority +
+				" -d " +
+				subnet +
+				accept_rule);
+	}
 
 	// Allow established connections
 	cmds.push_back(fwdqd +
