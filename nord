@@ -11,18 +11,17 @@ ipt="/usr/sbin/iptables"
 ipt6="/usr/sbin/ip6tables"
 
 PROGNAME="nord"
-CONF_DIR="$HOME/.config/nord"
-[[ -n $XDG_CONFIG_HOME ]] && CONF_DIR="$XDG_CONFIG_HOME/nord"
-DATA_DIR="$HOME/.local/share/nord"
-[[ -n $XDG_DATA_HOME ]] && CONF_DIR="$XDG_DATA_HOME/nord"
-CACHE_DIR="$HOME/.cache/nord"
-[[ -n $XDG_CACHE_HOME ]] && CONF_DIR="$XDG_CACHE_HOME/nord"
-OVPN_DIR="$DATA_DIR/ovpn"
-SYSTEMD_DIR="$HOME/.config/systemd/user"
-BINDIR="$HOME/.local/bin"
+BINDIR="$( [ $(id -u) -eq 0 ] && echo /var/local/bin || echo $HOME/.local/bin)"
+CONF_DIR="$( [ $(id -u) -eq 0 ] && echo /etc || echo $HOME/.config)/nord"
+DATA_DIR="$( [ $(id -u) -eq 0 ] && echo /usr/local/share || echo $HOME/.local/share)/nord"
+CACHE_DIR="$( [ $(id -u) -eq 0 ] && echo /var/cache || echo $HOME/.cache/)nord"
+SYSTEMD_DIR="$( [ $(id -u) -eq 0 ] && echo /etc/systemd/system || echo $HOME/.config/systemd)/user"
 CONN_TYPE="tcp"
-CONF_FILE="$CONF_DIR/nord.conf"
 CONN_NAME="current_connection"
+OVPN_DIR="$DATA_DIR/ovpn"
+CONF_FILE="$CONF_DIR/nord.conf"
+CONF_FILE_USER="$HOME/.config/nord/nord.conf"
+CONF_FILE_SYSTEM="/etc/nord/nord.conf"
 AUTH_FILE="$CONF_DIR/auth"
 VPN_FILES="$CACHE_DIR/nordvpnfiles.zip"
 IPT_FILE="$CONF_DIR/iptables-rules"
@@ -54,8 +53,7 @@ NUM_SERVERS=4
 PING_INTERVAL=1
 PING_NUM=1
 
-VERBOSE=1
-VVERBOSE=1
+VERBOSITY=30
 
 KILL_SWITCH=0
 CONF_LOADED=0
@@ -93,40 +91,17 @@ COUNTRY_ID['uk']=${COUNTRY_ID['gb']}
 
 
 
-# Basic logging/output
-function log () {
-	[[ ${config['QUIET']} ]] && return 0
-	echo -ne "$1"
-}
 
-# Error logging
-function elog () {
-	>&2 echo -ne "$1"
-}
-
-# Verbose logging
-function vlog () {
-	[[ ${config['QUIET']} ]] && return 0
-	if [[ ${config["VERBOSE"]} -eq 1 || ${config["VVERBOSE"]} -eq 1 ]]
-	then
-		echo -ne "$@"
-	fi
-}
-
-# Very verbose logging
-function vvlog () {
-	[[ ${config['QUIET']} ]] && return 0
-	if [[ ${config["VVERBOSE"]} -eq 1 ]]
-	then
-		echo -ne "$@"
-	fi
-}
+function debug()   { [[ ${config['VERBOSITY']} -le 10 ]] && echo -e "$@"; }
+function info()    { [[ ${config['VERBOSITY']} -le 20 ]] && echo -e "$@"; }
+function warning() { [[ ${config['VERBOSITY']} -le 30 ]] && echo -e "$@"; }
+function error()   { [[ ${config['VERBOSITY']} -le 40 ]] && echo -e "$@" >&2; }
 
 
 # Usage:  toLower x
 # Before: x is a non-empty string.
 # After:  Returns x in lowercase.
-function toLower () {
+function toLower() {
 	echo $1 | tr '[:upper:]' '[:lower:]'
 }
 
@@ -134,7 +109,7 @@ function toLower () {
 # Usage:  toUpper x
 # Before: x is a non-empty string.
 # After:  Returns x in uppercase.
-function toUpper () {
+function toUpper() {
 	echo $1 | tr '[:lower:]' '[:upper:]'
 }
 
@@ -142,7 +117,7 @@ function toUpper () {
 # Usage:  getConfig
 # Before: Config file contains config.
 # After:  Config options on file have been printed to stout.
-function getConfig () {
+function getConfig() {
 	while read line
 	do
 		if echo "$line" | grep -E "^[[:alpha:]_]+=\S+$" &>/dev/null
@@ -156,34 +131,44 @@ function getConfig () {
 # Usage:  loadConfig
 # Before: Nothing.
 # After:  User configurations have been loaded from user configuration file.
-function loadConfig () {
+function loadConfig() {
 	# See https://unix.stackexchange.com/a/206216
-
-	vlog "Loading configurations... "
 
 	# Create temp config, preventing starting logging output upon
 	#  encountering the logging flag
 	typeset -A temp_config
 
-	if [[ -f $CONF_FILE ]]
+	conf_files=("$CONF_FILE_SYSTEM" "$CONF_FILE_USER" "$CONF_FILE")
+	conf_file_found=false
+	for conf_file in "${conf_files[@]}"
+	do
+		[[ -f "$conf_file" ]] && conf_file_found=true && CONF_FILE=$conf_file
+	done
+	if [[ $conf_file_found == false ]]
 	then
-		vvlog "\n"
-		while read line
-		do
-			if echo "$line" | grep -F = &>/dev/null
-			then
-				varname=$(echo "$line" | cut -d '=' -f 1)
-				temp_config[$varname]=$(echo "$line" | cut -d '=' -f 2-)
-#				vvlog "Loading $varname as ${temp_config[$varname]}.\n"
-			fi
-		done < $CONF_FILE
-
-		vlog "Done\n"
-		temp_config["CONF_LOADED"]=1
-	else
-		vlog "Failed\n"
-		return 1
+		error "No config files found!"
+		info "Searched in $conf_files"
+		exit 1
 	fi
+
+	for conf_file in "${conf_files[@]}"
+	do
+		if [[ -f $CONF_FILE ]]
+		then
+			while read line
+			do
+				if echo "$line" | grep -F = &>/dev/null
+				then
+					varname=$(echo "$line" | cut -d '=' -f 1)
+					temp_config[$varname]=$(echo "$line" | cut -d '=' -f 2-)
+					#debug "Loading $varname as ${temp_config[$varname]}"
+				fi
+			done < $CONF_FILE
+
+			#info "Done loading configuration"
+			temp_config["CONF_LOADED"]=1
+		fi
+	done
 
 	config=()
 	# Copy default config
@@ -199,10 +184,10 @@ function loadConfig () {
 	done
 
 	# Load configs the nosaved config
-	vvlog "Updating config with nosave.\n"
+	debug "Updating config with nosave..."
 	for nokey in ${!nosave[@]}
 	do
-		vvlog "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}.\n"
+		debug "Changing $nokey from ${config[$nokey]} in config to ${nosave[$nokey]}"
 		config["$nokey"]=${nosave["$nokey"]}
 	done
 }
@@ -213,38 +198,36 @@ function loadConfig () {
 #          v is the new value of the item. x is optional.
 # After:  k has been set to v in the config file,
 #          and (if x is not "nosave") in the config variable.
-function updateConfig () {
+function updateConfig() {
 	if [[ -z $1 || -z $2 ]]
 	then
-		elog "Improper call to updateConfig. Aborting!\n"
+		error "Improper call to updateConfig. Aborting!"
 		return 1
 	fi
 
-	vlog "Updating $1 to $2... "
+	info "Updating config $1 -> $2"
 
 	if [[ $3 == "nosave" ]]
 	then
-		vvlog "non-save\n"
+		debug "Updating config $1 -> $2 temporarily"
 		nosave["$1"]=$2
 		loadConfig
 		return 0
-	else
-		vvlog "\n"
 	fi
 
-	vvlog "Updating config file... "
+	debug "Updating config file... "
 
 	# Branching depending whether the config is present or not.
 	if [[ -z $(grep $1 $CONF_FILE) ]]
 	then
-		vvlog "Failed.\nNew config options are not allowed.\n"
-		elog "Invalid config '`toLower $1`'.\n"
+		debug "Failed updating config, new config options are not allowed"
+		error "Invalid config '`toLower $1`'"
 		return 0
 		sed -ci "$ a $1=$2" $CONF_FILE
 	else
 		sed -ci "s/^$1=.*/$1=$2/" $CONF_FILE
 	fi
-	vlog "Done\n"
+	info "Done updating config $1 -> $2"
 	loadConfig
 }
 
@@ -253,22 +236,26 @@ function updateConfig () {
 # Before: Nothing.
 # After:  Returns 0 if all is set up.
 #          Exits with code 1 otherwise.
-function checkSetup () {
-	vlog "Checking for required files and folders... "
+function checkSetup() {
+	info "Checking for required files and folders... "
 	if [[
 			! -f $CONF_FILE ||
-			! -f $AUTH_FILE ||
+			#! -f $AUTH_FILE ||
 			! -d $CONF_DIR ||
 			! -d $DATA_DIR ||
 			! -d $OVPN_DIR ||
-			-z $(ls $OVPN_DIR)
+			-z $(ls $OVPN_DIR 2>/dev/null)
 		]]
 	then
-		elog "$PROGNAME seems to not be set up.\n"
-		elog "Please run \`$PROGNAME setup\`\n"
+		[[ ! -e "$CONF_FILE" ]] && error "CONF_FILE is missing: $CONF_FILE"
+		[[ ! -e "$AUTH_FILE" ]] && error "AUTH_FILE is missing: $AUTH_FILE"
+		[[ ! -e "$CONF_DIR" ]] && error "CONF_DIR is missing: $CONF_DIR"
+		[[ ! -e "$DATA_DIR" ]] && error "DATA_DIR is missing: $DATA_DIR"
+		[[ ! -e "$OVPN_DIR" ]] && error "OVPN_DIR is missing: $OVPN_DIR"
+		error "Setup is in an invalid state!"
 		exit 1
 	fi
-	vlog "Done\n"
+	info "Done checking for required files and folders"
 	return 0
 }
 
@@ -276,14 +263,14 @@ function checkSetup () {
 # Usage:  saveServers x
 # Before: x is a list of servers to save as top servers.
 # After:  Servers x have been saved to file.
-function saveServers () {
-	vlog "Saving top servers... "
+function saveServers() {
+	info "Saving top servers... "
 	echo "" > $TOP_SERVERS_FILE # Clear saved server list.
-	for server in $@
+	for server in "$@"
 	do
 		sed -ci "$ a $server" $TOP_SERVERS_FILE
 	done
-	vlog "Done\n"
+	info "Done saving top servers"
 }
 
 
@@ -293,10 +280,10 @@ function saveServers () {
 #          unless stat server is unreachable, then $retvar is
 #          filled with top servers saved on file. If the file is empty
 #          or unreachable, a default location is used, specified by config.
-function loadTopServers () {
+function loadTopServers() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 
-	vlog "Loading best servers from file... "
+	info "Loading best servers from file... "
 
 	noserv=0 # Flag indicating if there are any servers loaded
 	if [[ -f $TOP_SERVERS_FILE ]]
@@ -309,14 +296,14 @@ function loadTopServers () {
 				top_servers+=("$line")
 			fi
 		done < $TOP_SERVERS_FILE
-		vlog "Done\n"
+		info "Done loading best servers from file"
 
 		# Check that top_servers is not empty
 		if [[ ${#top_servers[@]} == 0 ]];then
 			noserv=1
 		fi
 	else
-		vlog "Failed\n"
+		info "No top-servers file '$TOP_SERVERS_FILE'"
 		noserv=1
 	fi
 
@@ -326,11 +313,11 @@ function loadTopServers () {
 		top_servers+=("${config["CONN_DEST_DEFAULT"]}")
 	fi
 
-	vvlog "Top servers:\n"
+	buffer=""
 	for x in ${top_servers[@]}; do
-		vvlog "$x "
+		buffer+="$x "
 	done
-	vvlog "\n"
+	debug "Top servers: $buffer"
 
 	top_server=$(echo ${top_servers[@]} | sed 's/ /\n/g' | shuf | head -n 1)
 
@@ -343,7 +330,7 @@ function loadTopServers () {
 # Usage:  getHostIP x
 # Before: .ovpn files are available. x is of the form [a-z]{2}\d+
 # After:  ipv4 address of x
-function getHostIP () {
+function getHostIP() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	dest_ip=$( \
 		2>/dev/null \
@@ -352,8 +339,8 @@ function getHostIP () {
 		| $sed 's/remote \(\(\w\+\.\?\)\+\) \w\+$/\1/' \
 	)
 	if [[ ! $? ]]; then
-		elog "Your vpn server files seem to be out of date.\n"
-		elog "Try updating with \`nord update\`\n"
+		error "Your vpn server files seem to be out of date."
+		error "Try updating with \`nord update\`"
 	fi
 	retvar="$dest_ip"
 }
@@ -362,12 +349,12 @@ function getHostIP () {
 # Usage:  firewallPunch x
 # Before: firewalld is in use and running. x is of the form [a-z]{2}\d+ 
 # After:  firewalld contains an exception to allow traffic to x over tun0
-function firewallPunch () {
+function firewallPunch() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	vvlog "Punching hole in firewall for $1... "
+	debug "Punching hole in firewall for $1... "
 	if [[ ${config["KILL_SWITCH"]} -eq 0 || $1 == $nowhere ]]
 	then
-		vvlog "Kill switch is off. Aborting!\n"
+		debug "Kill switch is off. Aborting!"
 		return 0
 	fi
 
@@ -376,9 +363,9 @@ function firewallPunch () {
 	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} $dest_ip ${config["CONN_TYPE"]} ${config["CONN_PORT"]}
 	if [[ $? ]]
 	then
-		vvlog "Done\n"
+		debug "Done punching firewall hole"
 	else
-		vvlog "Failed\n"
+		error "Failed firewal hole-punching"
 	fi
 }
 
@@ -387,21 +374,21 @@ function firewallPunch () {
 # Before: firewalld is in use and running. x is of the form [a-z]{2}\d+
 #         firewalldere is a hole in the firewall for x.
 # After:  firewalld has no hole from firewallPunch for x
-function firewallUnpunch () {
+function firewallUnpunch() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	if [[ ${config["KILL_SWITCH"]} -eq 0 || $1 == $nowhere ]]
 	then
 		return 0
 	fi
-	vvlog "Mending hole in firewall for $1... "
+	debug "Mending hole in firewall for $1... "
 	getHostIP $1
 	dest_ip=$retvar
 	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
 	if [[ $? ]]
 	then
-		vvlog "Done\n"
+		debug "Done mending hole in firewall"
 	else
-		vvlog "Failed\n"
+		error "Failed firewall hole-mending"
 	fi
 }
 
@@ -410,14 +397,13 @@ function firewallUnpunch () {
 # Before: Nothing.
 # After:  Returns 0 if a connection is available.
 #         Otherwise returns 1.
-function isNetworkAvailable () {
-	vvlog "A connection is "
+function isNetworkAvailable() {
 	if [[ -n $($nmcli connection show --active) ]]
 	then
-		vvlog "available.\n"
+		debug "A connection is available."
 		return 0
 	fi
-	vvlog "not available.\n"
+	debug "A connection is not available."
 	return 1
 }
 
@@ -426,14 +412,13 @@ function isNetworkAvailable () {
 # Before: Nothing.
 # After:  Returns 0 if a NordVPN connection is up.
 #         Otherwise returns 1.
-function isConnectionActive () {
-	vvlog "A connection is "
+function isConnectionActive() {
 	if [[ -n $($nmcli connection show --active | grep nord) ]]
 	then
-		vvlog "active.\n"
+		debug "A connection is active."
 		return 0
 	fi
-	vvlog "not active.\n"
+	debug "A connection is not active."
 	return 1
 }
 
@@ -442,7 +427,7 @@ function isConnectionActive () {
 # Before: Nothing.
 # After:  If there was an active NordVPN connection, nothing happens.
 #          Otherwise a connection is established.
-function ensureConnectivity () {
+function ensureConnectivity() {
 	if [[ ! isConnectionActive ]]
 	then
 		connect
@@ -458,23 +443,23 @@ function ensureConnectivity () {
 #          only include servers from that country
 #          Returns a list of best servers (last known best, from
 #          file if no connectivity).
-function getRecommendedServer_new () {
+function getRecommendedServer_new() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 
 	if [[ ! isNetworkAvailable ]]
 	then
-		elog "No internet connection.\n"
+		error "No internet connection!"
 		exit 1
 	fi
 
 	# Open a hole in the firewall if on
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
+		debug "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} nordvpn.com
-		vvlog "Done\n"
+		debug "Done punching holes for DNS and stats"
 	fi
 
 	filter=''
@@ -503,11 +488,11 @@ function getRecommendedServer_new () {
 	[[ -n $country ]] && url+=$country
 	[[ -n $filter ]] && url+=','$filter
 	url+='}'
-	vlog "Note: Only allowing to connect with either country or specialty server (obfuscated, p2p, double, dedicated).\n"
+	info "Note: Only allowing to connect with either country or specialty server (obfuscated, p2p, double, dedicated)."
 
-	vvlog "Setting recommendation filter to $filter\n"
-	vvlog "and technology to $technology\n"
-	vvlog "and fetching recommendation now from\n$url\n"
+	debug "Setting recommendation filter to $filter"
+	debug "and technology to $technology"
+	debug "and fetching recommendation now from: $url"
 
 	best_servers=$( \
 		$curl -g \
@@ -518,21 +503,21 @@ function getRecommendedServer_new () {
 
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Mending DNS lookup and stat fetch hole in firewall... "
+		debug "Mending DNS lookup and stat fetch hole in firewall... "
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
-		vvlog "Done\n"
+		debug "Done mending DNS and stat lookup hole in firewall"
 	fi
 
 	best_hostnames=""
 	if [[ -z $best_servers ]]
 	then
-		elog "Fetching a good server failed.\n"
-		elog "Falling back on cached servers.\n"
+		error "Fetching a good server failed."
+		error "Falling back on cached servers."
 		loadTopServers
 		best_hostnames=${retvar[@]}
 	elif [[ $best_servers == '[]' ]]
 	then
-		elog "Connecting by ${config['CONN_METHOD']} is not working at the moment.\n"
+		error "Connecting by ${config['CONN_METHOD']} is not working at the moment."
 		exit 0
 	else
 		# Parse $best_servers.
@@ -543,7 +528,7 @@ function getRecommendedServer_new () {
 		)
 	fi
 
-	vvlog "Top servers: ${best_hostnames[@]}\n"
+	debug "Top servers: ${best_hostnames[@]}"
 	saveServers ${best_hostnames[@]}
 	retvar=${best_hostnames[@]}
 }
@@ -558,27 +543,27 @@ function getRecommendedServer_new () {
 #          only include servers from that country
 #          Returns the single best server (last known best, from
 #          file if no connectivity).
-function getRecommendedServer () {
+function getRecommendedServer() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	# Fetch servers with lowest load
-	vlog "Fetching information on the load of NordVPN servers.\n"
+	info "Fetching information on the load of NordVPN servers."
 
-	vlog "Getting nord stats... "
+	info "Getting nord stats... "
 
 	# Open a hole in the firewall if on
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Punching DNS lookup and stat fetch hole in firewall... "
+		debug "Punching DNS lookup and stat fetch hole in firewall... "
 		# root does the DNS lookup of 'nordvpn.com', so we can't
 		# restrict DNS lookups to current user/pid.
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} nordvpn.com
-		vvlog "Done\n"
+		debug "Done punching DNS lookup and stat fetch hole in firewall"
 	fi
 
 	stats=""
 	if [[ isNetworkAvailable ]]
 	then
-		vvlog "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}.\n"
+		debug "Fetching stats now, with connection timeout ${config["CONN_TIMEOUT"]}."
 		stats=$( \
 			$curl \
 				--silent \
@@ -590,9 +575,9 @@ function getRecommendedServer () {
 	# Remove the rules set above.
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Mending DNS and stat fetch hole in firewall... "
+		debug "Mending DNS and stat fetch hole in firewall... "
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
-		vvlog "Done\n"
+		debug "Done mending DNS and stat fetch hole in firewall"
 	fi
 
 	# if no internet, load best servers.
@@ -600,10 +585,10 @@ function getRecommendedServer () {
 	then
 		if [[ ${config["KILL_SWITCH"]} -eq 0 ]]
 		then
-			log "No internet access.\n"
+			warning "No internet access!"
 			exit 1
 		fi
-		vlog "Kill switch is on.\n"
+		info "Kill switch is on."
 
 		loadTopServers
 
@@ -611,7 +596,7 @@ function getRecommendedServer () {
 		retvar=${retvar[0]}
 		return 0
 	else
-		vlog "Done\n"
+		info "Done getting nord stats"
 	fi
 
 
@@ -620,7 +605,7 @@ function getRecommendedServer () {
 
 	if [[ ${config["OBFUSCATED"]} -eq 1 ]]
 	then
-		elog "Obfuscated server select has not been implemented yet.\n"
+		error "Obfuscated server select has not been implemented yet."
 	fi
 	if [[ ${config["CONN_DEST_COUNTRY"]} != $nowhere ]]
 	then
@@ -645,24 +630,25 @@ function getRecommendedServer () {
 	# Initialize server list, and ping times
 	servers=()
 	ping_times=()
-	vvlog "Top servers:\n"
-	for server in $selected_servers; do
-		vvlog "$server "
+	buffer="Top servers:\n"
+	for server in "${selected_servers[@]}"
+	do
+		buffer+="$server "
 		servers+=($server)
 		ping_times+=(-1)
 	done
-	vvlog "\n"
+	debug "$buffer"
 
 
 	interface=$($nmcli connection show --active | grep 'wifi\|eth' | sed 's/.*\s\(\w\+\)/\1/')
 
-	vlog "Starting pinging of top servers.\n"
+	info "Starting pinging of top servers."
 	# Allow pinging despite killswitch.
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Punching pinging hole in firewall... "
+		debug "Punching pinging hole in firewall... "
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch ping
-		vvlog "Done\n"
+		debug "Done punching pinging hole in firewall"
 	fi
 	# Ping top n servers to find the nearest
 	#  (assuming ping time correlates with distance)
@@ -679,7 +665,7 @@ function getRecommendedServer () {
 		)
 
 		if [[ -z $times ]]; then
-			elog "Unable to ping NordVPN server ${servers[$server_key]}.\n"
+			error "Unable to ping NordVPN server ${servers[$server_key]}."
 			unset servers[$server_key]
 			unset ping_times[$server_key]
 			continue
@@ -694,27 +680,26 @@ function getRecommendedServer () {
 	# Mend killswitch ping hole.
 	if [[ ${config["KILL_SWITCH"]} -eq 1 ]]
 	then
-		vvlog "Mending pinging hole in firewall... "
+		debug "Mending pinging hole in firewall... "
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch disconnect
-		vvlog "Done\n"
+		debug "Done mending pinging hole in firewall"
 	fi
 
 	# Ensure all threads have completed
-	vlog "Servers with lowest load have been pinged.\n"
+	info "Servers with lowest load have been pinged."
 
 	# Order servers by ping time
-	vvlog "Sorting top servers by ping time... "
+	debug "Sorting top servers by ping time... "
 	zipped=()
 	for ((i=0; i<${#servers[@]}; i++))
 	do
 		zipped+=("${ping_times[$i]}:${servers[$i]}")
 	done
-	vvlog "\nTop servers and time:\n$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n)\n"
+	debug "Top servers and time:"
+	debug "$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n)"
 	ordered=$(echo ${zipped[@]} | sed 's/\s/\n/g' | sort -n | sed 's/^.*://')
-	vvlog "Done\n"
-	vvlog "Top servers in order:\n"
-	vvlog "${ordered[@]}"
-	vvlog "\n"
+	debug "Top servers in order:"
+	debug "${ordered[@]}"
 
 	saveServers ${ordered[@]}
 
@@ -725,18 +710,18 @@ function getRecommendedServer () {
 # Usage:  killswitch x
 # Before: x is "on" or "off"
 # After:  Killswich has been turned on/off according to x.
-function killswitch () {
+function killswitch() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	vlog "Turning kill switch $1...\n"
+	info "Turning kill switch $1..."
 	if [[ $1 == "on" ]]
 	then
 		if [[ ${config["KILL_SWITCH_SET"]} -ne 1 ]]
 		then
-			log "The kill switch is not set up on your computer.\n"
-			log "Setting up the kill switch requires super privileges,\n"
-			log "but only the first time, after which the kill switch\n"
-			log "can be used as a normal user.\n"
-			log "Please enter your password:\n"
+			error "The kill switch is not set up on your computer."
+			error "Setting up the kill switch requires super privileges,"
+			error "but only the first time, after which the kill switch"
+			error "can be used as a normal user."
+			error "Please enter your password:"
 			sudo chown root:root $BINDIR/nord-firewall && sudo chmod a+s $BINDIR/nord-firewall
 			[[ $? -ne 0 ]] && return
 			nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch setup
@@ -750,18 +735,18 @@ function killswitch () {
 
 		# Also punch a hole after the reload.
 		updateConfig "KILL_SWITCH" 1
-		vvlog "After updating config, punch a hole.\n"
+		debug "After updating config, punch a hole."
 		firewallPunch ${config["CONN_DEST"]}
 	elif [[ $1 == "off" ]]
 	then
 		nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch off
 		updateConfig "KILL_SWITCH" 0
 	else
-		vlog "Failed\n"
-		elog "Invalid parameter to kill switch. Aborting!\n"
+		info "Failed setting killswitch"
+		error "Invalid parameter to kill switch. Aborting!"
 		return 1
 	fi
-	log "Successfully turned kill switch $1.\n"
+	warning "Successfully turned kill switch $1."
 
 	return 0
 }
@@ -770,17 +755,17 @@ function killswitch () {
 # Usage:  getLogin
 # Before: Nothing.
 # After:  Username and password is stored in plain text.
-function getLogin () {
+function getLogin() {
 	echo "Please log in."
 	echo -n "Username: "
 	read username
 	echo -n "Password: "
 	read -s password
 	echo ""
-	vvlog "Creating auth file... "
+	debug "Creating auth file... "
 	install -m 600 /dev/null $AUTH_FILE
 	echo > $AUTH_FILE
-	vvlog "Done\n"
+	debug "Done creating auth file"
 	sed -ci "1s/^/vpn.secrets.password:$password/" $AUTH_FILE
 	
 	updateConfig "USERNAME" $username
@@ -792,7 +777,7 @@ function getLogin () {
 # After:  If no credentials are available, then the user has been
 #          prompted for login credentials, which have been saved.
 #          If credentials are available, nothing happens.
-function ensureLogin () {
+function ensureLogin() {
 	# If credentials are not stored, request them.
 	if [[ ! -f $AUTH_FILE || -z "${config['USERNAME']}" ]]; then
 		getLogin
@@ -803,13 +788,13 @@ function ensureLogin () {
 # Usage:  connectionCleanup
 # Before: Last connection might still be present in networkmanager.
 # After:  Remnants from last connection has been removed.
-function connectionCleanup () {
+function connectionCleanup() {
 	if [[ ${config["CONN_DEST"]} == $nowhere ]]
 	then
 		return 0
 	fi
 	output=$(2>&1 $nmcli connection delete 'nord')
-	vvlog $output
+	debug $output
 	firewallUnpunch ${config["CONN_DEST"]}
 	updateConfig "CONN_DEST" $nowhere
 }
@@ -818,24 +803,24 @@ function connectionCleanup () {
 # Usage:  disconnect
 # Before: A connection is up to Nord
 # After:  The connection has been terminated.
-function disconnect () {
+function disconnect() {
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
-	output=$($nmcli connection show | grep 'nord')
-	vvlog "nmcli search results:\n{$output}"
-	vvlog "\n"
+	output="$($nmcli connection show | grep 'nord')"
+	debug "nmcli search results:"
+	debug "$output"
 	if [[ -z $output || ${config["CONN_DEST"]} == $nowhere ]]
 	then
-		log "No connection active. Aborting!\n"
+		warning "No connection active. Aborting!"
 		return 1
 	fi
 	output=$(2>&1 $nmcli connection down 'nord')
-	vvlog $output
+	debug $output
 	connectionCleanup
 	if [[ $? ]]
 	then
-		log "Successfully disconnected.\n"
+		warning "Successfully disconnected."
 	else
-		elog "Error when disconnecting.\n"
+		error "Error when disconnecting."
 	fi
 }
 
@@ -843,30 +828,30 @@ function disconnect () {
 # Usage:  connect
 # Before: Nothing.
 # After:  A connection to Nord is up.
-function connect () {
-	ensureLogin
+function connect() {
+	ensureVpnFiles
 	checkSetup
+	ensureLogin
 	[[ ${config["CONF_LOADED"]} -ne 1 ]] && loadConfig
 	$nmcli connection show --active | grep 'nord' &>/dev/null
 	if [[ $? -eq 0 ]]
 	then
-		vlog "There is already a VPN connection up.\n"
-		log "Already connected to ${config["CONN_DEST"]}.\n"
+		info "There is already a VPN connection up."
+		warning "Already connected to ${config["CONN_DEST"]}."
 		return 0
 	fi
 
 	# Remove last connection; The connection might have dropped,
 	# and the last connection is still in network manager.
-	vvlog "Cleaning up last connection.\n"
+	debug "Cleaning up last connection."
 	connectionCleanup
 
 	getRecommendedServer_new
 	top_servers=${retvar[@]}
 
 	# Connect to NordVPN
-	vlog "Now connecting to NordVPN.\n"
-	vvlog "\n"
-	for server in $top_servers
+	info "Now connecting to NordVPN."
+	for server in "${top_servers[@]}"
 	do
 		updateConfig "CONN_DEST" $server
 
@@ -878,28 +863,28 @@ function connect () {
 		output=$(2>&1 $nmcli connection import type openvpn file \
 			"$OVPN_DIR/ovpn_${config["CONN_TYPE"]}/$dest.ovpn" )
 		[[ $? != 0 ]] && code=1
-		vvlog "${output[@]}\n"
+		debug "${output[@]}"
 		output=$(2>&1 $nmcli connection modify $dest con-name 'nord' )
 		[[ $? != 0 ]] && code=1
-		vvlog "${output[@]}\n"
+		debug "${output[@]}"
 		output=$(2>&1 $nmcli connection modify 'nord' vpn.user-name ${config["USERNAME"]} )
 		[[ $? != 0 ]] && code=1
-		vvlog "${output[@]}\n"
+		debug "${output[@]}"
 		output=$(2>&1 $nmcli connection up 'nord' passwd-file $AUTH_FILE )
 		[[ $? != 0 ]] && code=1
-		vvlog "${output[@]}\n"
+		debug "${output[@]}"
 
 		if [[ $code != 0 ]]
 		then
-			vlog "Connecting to ${config["CONN_DEST"]} failed.\n"
-			vvlog "Disconnecting now.\n"
+			info "Connecting to ${config["CONN_DEST"]} failed."
+			debug "Disconnecting now."
 			connectionCleanup
 			continue
 		fi
-		log "Successfully connected to ${config["CONN_DEST"]}.\n"
+		warning "Successfully connected to ${config["CONN_DEST"]}."
 		return 0
 	done
-	elog "Something came up.\n"
+	error "Something came up."
 	return 1
 }
 
@@ -907,21 +892,21 @@ function connect () {
 # Usage:  teardown
 # Before: Nord has been set up.
 # After:  No system files from nord are present.
-function teardown () {
-	log "Removing active connections... "
+function teardown() {
+	warning "Removing active connections... "
 	(1>/dev/null disconnect)
-	log "Done\n"
+	warning "Done removing active connections"
 	killswitch "off"
-	log "Tearing kill switch down... "
+	warning "Tearing kill switch down... "
 	nord-firewall ${config["FIREWALL_QUIET_FLAG"]} killswitch teardown
-	log "Done\n"
-	log "Removing nord... "
+	warning "Done tearing killswitch down"
+	warning "Removing nord... "
 	rm -f $BINDIR/$PROGNAME
 	rm -f $BINDIR/nord-firewall
 	rm -f $SYSTEMD_DIR/$PROGNAME.service
 	rm -f $SYSTEMD_DIR/$PROGNAME.timer
 	rm -rf $CONF_DIR $DATA_DIR $CACHE_DIR
-	log "Done\n"
+	warning "Done removing nord dirs"
 }
 
 
@@ -930,49 +915,30 @@ function teardown () {
 # After;  Latest .ovpn files have been fetched and stored.
 function download {
 	$wget -O $VPN_FILES $VPN_FILE_URL
-
-	# Extract zipfile.
-	mkdir -p $OVPN_DIR
-	$unzip -q $VPN_FILES -d $OVPN_DIR
 }
 
-
-# Usage:  setup
+# Usage:  downloadVpnFiles
 # Before: Nothing.
 # After:  A configuration file has been created,
 #         .ovpn files have been downloaded and extracted,
 #         unless the --cache flag is present, then no download takes place.
-function setup () {
-	log "Setting up $PROGNAME... "
-
-	# Remove any unzipped vpn files; they can be re-unzipped later.
-	# Unzipping is unexpensive in terms of time.
-	if [[ -e $OVPN_DIR ]]
-	then
-		rm -r $OVPN_DIR
-	fi
-	mkdir -p $DATA_DIR $CONF_DIR $CACHE_DIR $SYSTEMD_DIR $BINDIR
-
-	# Set up default config
-	[[ ${config['CACHE']} -ne 1 ]] && cp $PROGNAME.conf.default $CONF_FILE
-	cp $PROGNAME.service $SYSTEMD_DIR
-	sed -ci "s:\$HOME:$HOME:g" $SYSTEMD_DIR/$PROGNAME.service
-	cp $PROGNAME.timer $SYSTEMD_DIR
-	cp $PROGNAME $DATA_DIR
-	chmod 755 $DATA_DIR/$PROGNAME
-	2>/dev/null ln $DATA_DIR/$PROGNAME $BINDIR
+function downloadVpnFiles() {
+	error "No VPN files found to use for connecting"
 
 	# If the cache has vpn files zipped, they might be old.
 	# Let the user decide if they need updating.
 	# If no cache, the zip file is downloaded.
-	if [[ -e $VPN_FILES && ${config['CACHE']} != 1 ]]
+	if [[ -e $VPN_FILES \
+		&& ${config['CACHE']} != 1 \
+		&& $1 != no-interact \
+		&& ${config['VERBOSITY']} -lt 40 \
+		]]
 	then
-		log "\nCached vpn files found. Do you want to use them? [y/n] "
+		echo -n "Cached vpn files found. Do you want to use them? [y/n] "
 		answered=0
 		while [[ answered -eq 0 ]]
 		do
 			read answer
-			log "\n"
 			if [[ $answer == "y" || $answer == "Y" ]]
 			then
 				answered=1
@@ -982,20 +948,23 @@ function setup () {
 				rm -r $VPN_FILES
 				download
 			else
-				log "Incorrect answer. Do you want to use the cached files? [y/n] "
+				echo -n "Invalid answer. Do you want to use the cached files? [y/n] "
 			fi
 		done
-		log "\n"
 	elif [[ ${config['CACHE']} != 1 ]]
 	then
 		download
 	fi
+	$unzip -q $VPN_FILES -d $OVPN_DIR
 
-	# Set up killswitch firewall
-	cp nord-firewall $BINDIR
-
-	log "Done\n"
+	error "Done fetching OpenVPN files"
 	return 0
+}
+
+function ensureVpnFiles() {
+	[[ ! -e $(dirname $OVPN_DIR) ]] && mkdir -p $(dirname $OVPN_DIR)
+	[[ ! -e $OVPN_DIR ]] && mkdir -p $OVPN_DIR
+	[[ -z $(ls $OVPN_DIR) ]] && downloadVpnFiles
 }
 
 
@@ -1003,14 +972,13 @@ function setup () {
 # Before: Nothing.
 # After:  Returns 0 if x is a country code.
 #         Returns 1 otherwise.
-function checkLegalCountry () {
-	vlog "Asserting that $1 is a legal country code... "
+function checkLegalCountry() {
+	info "Checking whether $1 is a legal country code... "
 	if [[ -n ${COUNTRY_ID[$1]} ]]
 	then
-		vlog "Done\n"
 		return 0
 	fi
-	vlog "Failed\n"
+	error "'$1' is an illegal country code!"
 	return 1
 }
 
@@ -1020,7 +988,7 @@ function checkLegalCountry () {
 # After:  echoes 'on' for config value 1,
 #         'off' for config value 0,
 #         the value else.
-function status () {
+function status() {
 	[[ -z $1 ]] && return 1
 	  if [[ $1 == 1 ]]; then echo on
 	elif [[ $1 == 0 ]];  then echo off
@@ -1032,25 +1000,27 @@ function status () {
 # Usage:  printCountries
 # Before: Nothing.
 # After:  All recognized countries have been printed to stdout.
-function printCountries () {
+function printCountries() {
+	local buffer=""
 	local counter
 	local loop
 	local countries
 	loop='..........'
 	counter=$loop
 	countries=$(echo ${!COUNTRY_ID[@]} | sed 's/ /\n/g' | sort)
-	log "Valid country codes:\n"
+	buffer+="Valid country codes:\n   [ "
 	for id in ${countries[@]}
 	do
 		if [[ $counter == $loop ]]
 		then
 			counter=.
-			log "\n    "
+			buffer+="\n     "
 		fi
-		log "$id "
+		buffer+="$id "
 		counter+=.
 	done
-	log "\n\n"
+	buffer+="]"
+	echo "$buffer"
 }
 
 
@@ -1058,49 +1028,50 @@ function printCountries () {
 # Before: Nothing.
 # After:  Status of various parts of the application have been
 #         printed to stdout.
-function printStatus () {
-	vlog "Printing status message... \n"
-	log " Status of nord parts:                                 \n"
-	log "                                                       \n"
-	log "   obfuscated: $(status ${config['OBFUSCATED']})       \n"
-	log "   connection: $(status ${config['CONN_DEST']})        \n"
-	log "  kill switch: $(status ${config['KILL_SWITCH']})      \n"
-	log " auto-connect: $(status ${config['AUTOCONNECT']})      \n"
-	log "     protocol: $(status ${config['CONN_TYPE']})        \n"
-	log "      country: $(status ${config['CONN_DEST_COUNTRY']})\n"
+function printStatus() {
+	info "Printing status message..."
+	echo " Status of nord parts:                                 "
+	echo "                                                       "
+	echo "   obfuscated: $(status ${config['OBFUSCATED']})       "
+	echo "   connection: $(status ${config['CONN_DEST']})        "
+	echo "  kill switch: $(status ${config['KILL_SWITCH']})      "
+	echo " auto-connect: $(status ${config['AUTOCONNECT']})      "
+	echo "     protocol: $(status ${config['CONN_TYPE']})        "
+	echo "      country: $(status ${config['CONN_DEST_COUNTRY']})"
 }
 
 
 # Usage:  printHelp
 # Before: Nothing.
 # After:  A useful help message has been printed to stdout.
-function printHelp () {
-	vlog "Printing help message... \n"
-	log "\n"
-	log " Usage: $PROGNAME [OPTION] [COMMAND [ARGUMENT]]\n"
-	log "\n\n"
-	log "   Commands [args]\n"
-	log "\n"
-	log "      setup            Downloads the required files\n"
-	log "                         and takes care of some initial plumbing.\n"
-	log "      login            Saves your credentials for connecting later.\n"
-	log "     update            (Re-)download the latest .ovpn files.\n"
-	log "    connect [x|f [x]]  Connect to the best NordVPN server, or to x\n"
-	log "                         where x is a country code. Or to x with filter f\n"
-	log "                         where f is {obfuscated, dedicated, double, p2p}.\n"
-	log "                         If x is omitted, then a good server of type f\n"
-	log "                         is chosen. There is no guarantee than a f x\n"
-	log "                         configuration will work. Supplying f or x overrides\n"
-	log "                         your configurations set with nord set.\n"
-	log " disconnect            Disconnect from NordVPN.\n"
-	log "     config            Display all of your configurations.\n"
-	log "        set x y        Set config item x to y.\n"
-	log "                       Valid config items and their values:\n\n"
-	log "                         killswitch  [on|off]  Requires root access to set up.\n"
-	log "                         protocol    [tcp|udp]\n"
-	log "                         obfuscated  [on|off]\n"
-	log "                         autoconnect [on|off]\n"
-	log "\n"
+function printHelp() {
+	info "Printing help message..."
+	echo ""
+	echo " Usage: $PROGNAME [OPTION] [COMMAND [ARGUMENT]]"
+	echo ""
+	echo ""
+	echo "   Commands [args]"
+	echo ""
+	echo "   donwload            Downloads the required files"
+	echo "                         and takes care of some initial plumbing."
+	echo "      login            Saves your credentials for connecting later."
+	echo "     update            (Re-)download the latest .ovpn files."
+	echo "    connect [x|f [x]]  Connect to the best NordVPN server, or to x"
+	echo "                         where x is a country code. Or to x with filter f"
+	echo "                         where f is {obfuscated, dedicated, double, p2p}."
+	echo "                         If x is omitted, then a good server of type f"
+	echo "                         is chosen. There is no guarantee than a f x"
+	echo "                         configuration will work. Supplying f or x overrides"
+	echo "                         your configurations set with nord set."
+	echo " disconnect            Disconnect from NordVPN."
+	echo "     config            Display all of your configurations."
+	echo "        set x y        Set config item x to y."
+	echo "                       Valid config items and their values:"
+	echo "                         killswitch  [on|off]  Requires root access to set up."
+	echo "                         protocol    [tcp|udp]"
+	echo "                         obfuscated  [on|off]"
+	echo "                         autoconnect [on|off]"
+	echo ""
 	return 0
 }
 
@@ -1110,20 +1081,66 @@ function printHelp () {
 # After:  An error message has been printed notifying the
 #          user that the supplied argument is invalid.
 #          Program exits with code 1.
-function invalidParam () {
-	elog "Invalid parameter!\n"
+function invalidParam() {
+	error "Invalid parameter!"
 	exit 1
 }
 
 
+# Usage:  setDirs
+# Before: Nothing.
+# After:  Directories necessary for functioning have been
+#         set accordingly and in some cases created.
+function setDirs() {
+	local isRoot="$([ $(id -u) -eq 0 ] && echo true || echo false)"
 
-function main () {
+	# Set user dirs
+	BINDIR="$HOME/.local/bin"
+	CONF_DIR="$HOME/.config/nord"
+	DATA_DIR="$HOME/.local/share/nord"
+	CACHE_DIR="$HOME/.cache"
+	SYSTEMD_DIR="$HOME/.local/share/systemd"
+
+	# Default to system dirs if missing, or if running as root
+	[[ $isRoot == true || ! -d $BINDIR ]] && BINDIR="/var/local/bin" || mkdir -p $BINDIR
+	[[ $isRoot == true || ! -d $CONF_DIR ]] && CONF_DIR="/etc/nord" || mkdir -p $CONF_DIR
+	[[ $isRoot == true || ! -d $DATA_DIR ]] && DATA_DIR="/usr/local/share/nord" || mkdir -p $DATA_DIR
+	[[ $isRoot == true || ! -d $CACHE_DIR ]] && CACHE_DIR="/var/cache" || mkdir -p $CACHE_DIR
+	[[ $isRoot == true || ! -d $SYSTEMD_DIR ]] && SYSTEMD_DIR="/etc/systemd/system" || mkdir -p $SYSTEMD_DIR
+
+	# Set dependents
+	OVPN_DIR="$DATA_DIR/ovpn"
+	CONF_FILE="$CONF_DIR/nord.conf"
+	AUTH_FILE="$CONF_DIR/auth"
+	VPN_FILES="$CACHE_DIR/nordvpnfiles.zip"
+	IPT_FILE="$CONF_DIR/iptables-rules"
+	IPT6_FILE="$CONF_DIR/ip6tables-rules"
+	TOP_SERVERS_FILE="$CONF_DIR/topservers.conf"
+
+	return 0
+
+	debug "Set CONF_FILE: $CONF_FILE"
+	debug "Set CONF_DIR: $CONF_DIR"
+	debug "Set DATA_DIR: $DATA_DIR"
+	debug "Set OVPN_DIR: $OVPN_DIR"
+	debug "Set OVPN_DIR: $OVPN_DIR"
+	debug "Set CONF_FILE: $CONF_FILE"
+	debug "Set AUTH_FILE: $AUTH_FILE"
+	debug "Set VPN_FILES: $VPN_FILES"
+	debug "Set IPT_FILE: $IPT_FILE"
+	debug "Set IPT6_FILE: $IPT6_FILE"
+	debug "Set TOP_SERVERS_FILE: $TOP_SERVERS_FILE"
+}
+
+
+function main() {
 	# Empty call, do nothing
 	if [[ $# -eq 0 ]]
 	then
 		return 0
 	fi
 
+	setDirs
 	loadConfig
 	# Parse command line options
 	positional=()
@@ -1133,15 +1150,15 @@ function main () {
 
 		case $cmd in
 			-q|--quiet)
-				updateConfig "QUIET" 1 "nosave"
+				updateConfig "VERBOSITY" 40 "nosave"
 				shift
 				;;
 			-v|--verbose)
-				updateConfig "VERBOSE" 1 "nosave"
+				updateConfig "VERBOSITY" 20 "nosave"
 				shift
 				;;
 			-vv|--very-verbose)
-				updateConfig "VVERBOSE" 1 "nosave"
+				updateConfig "VERBOSITY" 10 "nosave"
 				shift
 				;;
 			c|connect)
@@ -1168,7 +1185,7 @@ function main () {
 						shift
 					elif [[ $legalCountry -ne 0 ]]
 					then
-						elog "Invalig country code!\n"
+						error "Invalig country code!"
 						printHelp
 						exit 1
 					else
@@ -1183,13 +1200,12 @@ function main () {
 				disconnect
 				return 0
 				;;
-			reconnect)
+			r|reconnect)
 				shift
-				vvlog "Disconnecting in reconnect\n"
+				debug "Disconnecting in reconnect"
 				disconnect
-				vvlog "Connecting in reconnect with arguments: $@ \n"
-				nord connect $@
-				return 0
+				debug "Connecting in reconnect with arguments: $@"
+				set -- "connect" "$@"
 				;;
 			login)
 				getLogin
@@ -1203,11 +1219,11 @@ function main () {
 				updateConfig 'CACHE' 1 'nosave'
 				shift
 				;;
-			s|setup)
-				setup
+			download)
+				downloadVpnFiles
 				return 0
 				;;
-			status)
+			s|status)
 				printStatus
 				return 0
 				;;
@@ -1222,7 +1238,7 @@ function main () {
 					printHelp
 					return 1
 				fi
-				vlog "Setting $1 to $2.\n"
+				info "Setting $1 to $2."
 				option_key=$(toLower $1)
 				val=$2
 				if   [[ $val == "on"  ]]; then val=1
@@ -1246,7 +1262,7 @@ function main () {
 					[[ ! ( $val == "tcp" || $val == "TCP" ||
 					       $val == "udp" || $val == "UDP" ) ]] && invalidParam
 					val=$(toLower $val)
-					vvlog "Updating connection port for $option_key.\n"
+					debug "Updating connection port for $option_key."
 					[[ $val == "tcp" ]] && updateConfig "CONN_PORT" 443
 					[[ $val == "udp" ]] && updateConfig "CONN_PORT" 1194
 				elif [[ $option_key == 'conn_dest_country' ]]
@@ -1255,7 +1271,7 @@ function main () {
 					checkLegalCountry $val
 					if [[ $? -ne 0 ]]
 					then
-						elog "Invalid country code.\n"
+						error "Invalid country code."
 						printCountries
 						updateConfig 'CONN_DEST_COUNTRY' $nowhere
 						return 1
@@ -1265,25 +1281,26 @@ function main () {
 				then
 					if [[ $val == 1 ]]
 					then
+						userFlag="$( [[ $(id -u) -eq 0 ]] && echo '' || echo '--user')"
 						# Autoconnect needs login credentials.
 						ensureLogin
-						vlog "Making $PROGNAME autoconnect... "
-						systemctl --user enable $PROGNAME.service --now
-						systemctl --user enable $PROGNAME.timer --now
+						info "Making $PROGNAME autoconnect... "
+						systemctl $userFlag enable $PROGNAME.service --now
+						systemctl $userFlag enable $PROGNAME.timer --now
 						updateConfig 'AUTOCONNECT' 1
-						vlog "Done\n"
+						info "Done setting autoconnect"
 					else
-						vlog "Making $PROGNAME stop autoconnecting... "
-						systemctl --user stop $PROGNAME.timer
-						systemctl --user disable $PROGNAME.timer
-						systemctl --user stop $PROGNAME.service
-						systemctl --user disable $PROGNAME.service
+						info "Making $PROGNAME stop autoconnecting... "
+						systemctl $userFlag stop $PROGNAME.timer
+						systemctl $userFlag disable $PROGNAME.timer
+						systemctl $userFlag stop $PROGNAME.service
+						systemctl $userFlag disable $PROGNAME.service
 						updateConfig 'AUTOCONNECT' 0
-						vlog "Done\n"
+						info "Done stopping autoconnect"
 					fi
 				fi
 
-				vlog "Transforming $option_key to $(toUpper $option_key)\n"
+				info "Transforming $option_key to $(toUpper $option_key)"
 				updateConfig $(toUpper $option_key) $val
 				return 0
 				;;
